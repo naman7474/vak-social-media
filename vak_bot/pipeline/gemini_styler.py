@@ -4,10 +4,18 @@ import base64
 import io
 import json
 import uuid
+from typing import Any
 
 import httpx
 import structlog
 from PIL import Image, ImageEnhance, ImageOps
+
+try:
+    from google import genai
+    from google.genai import types as genai_types
+except Exception:  # pragma: no cover - optional dependency
+    genai = None
+    genai_types = None
 
 from vak_bot.config import get_settings
 from vak_bot.pipeline.errors import StylingError
@@ -17,6 +25,41 @@ from vak_bot.schemas import StyleBrief, StyledVariant
 from vak_bot.storage import R2StorageClient
 
 logger = structlog.get_logger(__name__)
+
+_SUPPORTED_INPUT_MIMES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
+_PIL_TO_MIME = {
+    "JPEG": "image/jpeg",
+    "PNG": "image/png",
+    "WEBP": "image/webp",
+    "HEIC": "image/heic",
+    "HEIF": "image/heif",
+}
+
+
+def _normalize_mime(mime: str) -> str:
+    cleaned = (mime or "").split(";")[0].strip().lower()
+    if cleaned == "image/jpg":
+        return "image/jpeg"
+    return cleaned
+
+
+def _detect_image_mime(data: bytes) -> str | None:
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            return _PIL_TO_MIME.get((image.format or "").upper())
+    except Exception:
+        return None
+
+
+def _convert_to_jpeg(data: bytes) -> bytes:
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            rgb = image.convert("RGB")
+            out = io.BytesIO()
+            rgb.save(out, format="JPEG", quality=95)
+            return out.getvalue()
+    except Exception:
+        return data
 
 
 def _create_placeholder_variant(source_url: str, mode: str) -> bytes:
@@ -49,18 +92,250 @@ def _download_image_as_base64(url: str) -> tuple[str, str]:
     with httpx.Client(timeout=30.0) as client:
         resp = client.get(url)
         resp.raise_for_status()
-        content_type = resp.headers.get("content-type", "image/jpeg")
-        mime = content_type.split(";")[0].strip()
-        return base64.b64encode(resp.content).decode("utf-8"), mime
+        data = resp.content
+        header_mime = _normalize_mime(resp.headers.get("content-type", ""))
+        detected_mime = _detect_image_mime(data)
+        mime = header_mime if header_mime in _SUPPORTED_INPUT_MIMES else (detected_mime or "")
+        if mime not in _SUPPORTED_INPUT_MIMES:
+            data = _convert_to_jpeg(data)
+            mime = "image/jpeg"
+        return base64.b64encode(data).decode("utf-8"), mime
 
 
 class GeminiStyler:
     def __init__(self) -> None:
         self.settings = get_settings()
         self.storage = R2StorageClient()
+        self.api_key = self.settings.google_api_key or self.settings.gemini_api_key
         self.image_model = normalize_gemini_image_model(self.settings.gemini_image_model)
+        self._sdk_client = None
+        self._runtime_model: str | None = None
+        self._runtime_part_style: str | None = None
         if self.image_model != self.settings.gemini_image_model:
             logger.info("gemini_model_normalized", configured=self.settings.gemini_image_model, normalized=self.image_model)
+        if genai is not None and self.api_key:
+            try:
+                self._sdk_client = genai.Client(api_key=self.api_key)
+                logger.info("gemini_sdk_available")
+            except Exception as exc:
+                logger.warning("gemini_sdk_init_failed", error=str(exc))
+
+    def _model_candidates(self) -> list[str]:
+        if self._runtime_model:
+            return [self._runtime_model]
+        if self.image_model == "gemini-3-pro-image-preview":
+            return [self.image_model, "gemini-2.5-flash-image"]
+        return [self.image_model]
+
+    def _part_style_candidates(self) -> list[str]:
+        if self._runtime_part_style:
+            return [self._runtime_part_style]
+        return ["snake", "camel"]
+
+    def _build_image_parts(
+        self,
+        prompt: str,
+        ref_mime: str,
+        ref_b64: str,
+        saree_mime: str,
+        saree_b64: str,
+        part_style: str,
+    ) -> list[dict[str, Any]]:
+        if part_style == "camel":
+            ref_image_part = {"inlineData": {"mimeType": ref_mime, "data": ref_b64}}
+            saree_image_part = {"inlineData": {"mimeType": saree_mime, "data": saree_b64}}
+        else:
+            ref_image_part = {"inline_data": {"mime_type": ref_mime, "data": ref_b64}}
+            saree_image_part = {"inline_data": {"mime_type": saree_mime, "data": saree_b64}}
+        return [
+            {"text": prompt},
+            {"text": "Reference image (style inspiration):"},
+            ref_image_part,
+            {"text": "Saree image (keep product accurate):"},
+            saree_image_part,
+        ]
+
+    def _build_generation_config(self, model: str, style_brief: StyleBrief) -> dict[str, Any]:
+        image_config: dict[str, Any] = {
+            "aspectRatio": style_brief.composition.aspect_ratio,
+        }
+        if model == "gemini-3-pro-image-preview":
+            image_config["imageSize"] = "1K"
+        return {
+            "responseModalities": ["TEXT", "IMAGE"],
+            "imageConfig": image_config,
+        }
+
+    def _extract_image_bytes_from_sdk_response(self, response: Any) -> bytes:
+        # SDK may expose parts directly or via candidates.
+        parts = getattr(response, "parts", None)
+        if isinstance(parts, list):
+            for part in parts:
+                inline = getattr(part, "inline_data", None)
+                data = getattr(inline, "data", None) if inline is not None else None
+                if isinstance(data, (bytes, bytearray)) and data:
+                    return bytes(data)
+                if isinstance(data, str) and data:
+                    return base64.b64decode(data)
+
+        candidates = getattr(response, "candidates", None)
+        if isinstance(candidates, list):
+            for candidate in candidates:
+                content = getattr(candidate, "content", None)
+                parts = getattr(content, "parts", None) if content is not None else None
+                if not isinstance(parts, list):
+                    continue
+                for part in parts:
+                    inline = getattr(part, "inline_data", None)
+                    data = getattr(inline, "data", None) if inline is not None else None
+                    if isinstance(data, (bytes, bytearray)) and data:
+                        return bytes(data)
+                    if isinstance(data, str) and data:
+                        return base64.b64decode(data)
+        raise StylingError("Gemini SDK did not return image bytes")
+
+    def _request_generation_sdk(
+        self,
+        prompt: str,
+        ref_bytes: bytes,
+        ref_mime: str,
+        saree_bytes: bytes,
+        saree_mime: str,
+        style_brief: StyleBrief,
+        variant: int,
+        position: int,
+    ) -> bytes | None:
+        if self._sdk_client is None or genai_types is None:
+            return None
+
+        model_candidates = self._model_candidates()
+        last_error: Exception | None = None
+        for idx, model in enumerate(model_candidates):
+            is_last = idx == (len(model_candidates) - 1)
+            image_cfg_kwargs: dict[str, Any] = {"aspect_ratio": style_brief.composition.aspect_ratio}
+            if model == "gemini-3-pro-image-preview":
+                image_cfg_kwargs["image_size"] = "1K"
+            try:
+                config = genai_types.GenerateContentConfig(
+                    response_modalities=["TEXT", "IMAGE"],
+                    image_config=genai_types.ImageConfig(**image_cfg_kwargs),
+                )
+                contents = [
+                    genai_types.Content(
+                        role="user",
+                        parts=[
+                            genai_types.Part.from_text(text=prompt),
+                            genai_types.Part.from_bytes(data=ref_bytes, mime_type=ref_mime),
+                            genai_types.Part.from_bytes(data=saree_bytes, mime_type=saree_mime),
+                        ],
+                    )
+                ]
+                response = self._sdk_client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=config,
+                )
+                self._runtime_model = model
+                self._runtime_part_style = "sdk"
+                return self._extract_image_bytes_from_sdk_response(response)
+            except Exception as exc:
+                logger.error(
+                    "gemini_sdk_generation_failed",
+                    error=str(exc),
+                    model=model,
+                    variant=variant,
+                    position=position,
+                )
+                last_error = exc
+                if not is_last:
+                    logger.warning("gemini_model_fallback", from_model=model, to_model=model_candidates[idx + 1])
+                    continue
+                break
+        logger.warning("gemini_sdk_fallback_to_rest", error=str(last_error) if last_error else "unknown")
+        return None
+
+    def _request_generation(
+        self,
+        parts_by_style: dict[str, list[dict[str, Any]]],
+        style_brief: StyleBrief,
+        headers: dict[str, str],
+        variant: int,
+        position: int,
+    ) -> dict[str, Any]:
+        last_error: Exception | None = None
+        model_candidates = self._model_candidates()
+        part_style_candidates = [style for style in self._part_style_candidates() if style in parts_by_style]
+        attempts = [(model, part_style) for model in model_candidates for part_style in part_style_candidates]
+
+        for idx, (model, part_style) in enumerate(attempts):
+            is_last_attempt = idx == (len(attempts) - 1)
+            endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+            payload = {
+                "contents": [{"parts": parts_by_style[part_style]}],
+                "generationConfig": self._build_generation_config(model, style_brief),
+            }
+            try:
+                with httpx.Client(timeout=180.0) as client:
+                    resp = client.post(endpoint, headers=headers, json=payload)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    self._runtime_model = model
+                    self._runtime_part_style = part_style
+                    return data
+            except httpx.HTTPStatusError as exc:
+                body_preview = exc.response.text[:600] if exc.response is not None else ""
+                logger.error(
+                    "gemini_styling_http_error",
+                    error=str(exc),
+                    model=model,
+                    part_style=part_style,
+                    status_code=exc.response.status_code if exc.response is not None else None,
+                    body_preview=body_preview,
+                    variant=variant,
+                    position=position,
+                )
+                error_message = str(exc)
+                if body_preview:
+                    error_message = f"{exc} | response={body_preview}"
+                last_error = StylingError(error_message)
+                should_fallback = (
+                    exc.response is not None
+                    and exc.response.status_code in {400, 404}
+                    and not is_last_attempt
+                )
+                if should_fallback:
+                    next_model, next_part_style = attempts[idx + 1]
+                    logger.warning(
+                        "gemini_request_fallback",
+                        from_model=model,
+                        from_part_style=part_style,
+                        to_model=next_model,
+                        to_part_style=next_part_style,
+                    )
+                    continue
+                raise StylingError(error_message) from exc
+            except Exception as exc:
+                logger.error(
+                    "gemini_styling_failed",
+                    error=str(exc),
+                    model=model,
+                    part_style=part_style,
+                    variant=variant,
+                    position=position,
+                )
+                last_error = exc
+                if not is_last_attempt:
+                    next_model, next_part_style = attempts[idx + 1]
+                    logger.warning(
+                        "gemini_request_fallback",
+                        from_model=model,
+                        from_part_style=part_style,
+                        to_model=next_model,
+                        to_part_style=next_part_style,
+                    )
+                    continue
+                raise StylingError(str(exc)) from exc
+        raise StylingError(str(last_error) if last_error is not None else "Gemini request failed")
 
     def _build_prompt(self, style_brief: StyleBrief, overlay_text: str | None, modifier: str) -> str:
         base = load_styling_prompt()
@@ -111,13 +386,12 @@ class GeminiStyler:
                 )
             return variants
 
-        if not self.settings.google_api_key:
-            raise StylingError("Missing GOOGLE_API_KEY")
+        if not self.api_key:
+            raise StylingError("Missing GOOGLE_API_KEY or GEMINI_API_KEY")
 
         generated: list[StyledVariant] = []
-        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{self.image_model}:generateContent"
         headers = {
-            "x-goog-api-key": self.settings.google_api_key,
+            "x-goog-api-key": self.api_key,
             "Content-Type": "application/json",
         }
 
@@ -137,36 +411,60 @@ class GeminiStyler:
                 except Exception as exc:
                     raise StylingError(f"Failed to download saree image: {exc}") from exc
 
-                # Build the request with inline image data
-                parts = [
-                    {"text": prompt},
-                    {"text": "Reference image (style inspiration):"},
-                    {"inlineData": {"mimeType": ref_mime, "data": ref_b64}},
-                    {"text": "Saree image (keep product accurate):"},
-                    {"inlineData": {"mimeType": saree_mime, "data": saree_b64}},
-                ]
-
-                payload = {
-                    "contents": [{"parts": parts}],
-                    "generationConfig": {
-                        "responseModalities": ["IMAGE", "TEXT"],
-                    },
+                part_style_candidates = self._part_style_candidates()
+                parts_by_style = {
+                    part_style: self._build_image_parts(
+                        prompt=prompt,
+                        ref_mime=ref_mime,
+                        ref_b64=ref_b64,
+                        saree_mime=saree_mime,
+                        saree_b64=saree_b64,
+                        part_style=part_style,
+                    )
+                    for part_style in part_style_candidates
                 }
+                logger.info(
+                    "gemini_request_prepared",
+                    variant=idx,
+                    position=position,
+                    candidate_models=self._model_candidates(),
+                    candidate_part_styles=part_style_candidates,
+                    ref_mime=ref_mime,
+                    saree_mime=saree_mime,
+                    using_sdk=self._sdk_client is not None,
+                )
 
-                try:
-                    with httpx.Client(timeout=180.0) as client:
-                        resp = client.post(endpoint, headers=headers, json=payload)
-                        resp.raise_for_status()
-                        data = resp.json()
-                except Exception as exc:
-                    logger.error("gemini_styling_failed", error=str(exc), variant=idx, position=position)
-                    raise StylingError(str(exc)) from exc
-
-                image_bytes = self._extract_image_bytes(data)
+                sdk_image_bytes = self._request_generation_sdk(
+                    prompt=prompt,
+                    ref_bytes=base64.b64decode(ref_b64),
+                    ref_mime=ref_mime,
+                    saree_bytes=base64.b64decode(saree_b64),
+                    saree_mime=saree_mime,
+                    style_brief=style_brief,
+                    variant=idx,
+                    position=position,
+                )
+                if sdk_image_bytes is not None:
+                    image_bytes = sdk_image_bytes
+                else:
+                    data = self._request_generation(
+                        parts_by_style=parts_by_style,
+                        style_brief=style_brief,
+                        headers=headers,
+                        variant=idx,
+                        position=position,
+                    )
+                    image_bytes = self._extract_image_bytes(data)
                 key = f"styled/post-{uuid.uuid4().hex}/variant-{idx}/item-{position}.jpg"
                 item_url = self.storage.upload_bytes(key, image_bytes)
                 item_urls.append(item_url)
-                logger.info("gemini_variant_generated", variant=idx, position=position)
+                logger.info(
+                    "gemini_variant_generated",
+                    variant=idx,
+                    position=position,
+                    model=self._runtime_model,
+                    part_style=self._runtime_part_style,
+                )
 
             generated.append(
                 StyledVariant(

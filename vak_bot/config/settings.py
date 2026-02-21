@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     openai_model: str = Field(default="gpt-5-mini", alias="OPENAI_MODEL")
 
     google_api_key: str = Field(default="", alias="GOOGLE_API_KEY")
+    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     gemini_image_model: str = Field(default="gemini-3-pro-image-preview", alias="GEMINI_IMAGE_MODEL")
 
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
