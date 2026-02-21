@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 
 import httpx
+import structlog
 
 from vak_bot.config import get_settings
 from vak_bot.pipeline.errors import CaptionError
 from vak_bot.pipeline.prompts import load_caption_prompt
 from vak_bot.schemas import CaptionPackage, StyleBrief
+
+logger = structlog.get_logger(__name__)
 
 
 class ClaudeCaptionWriter:
@@ -46,13 +49,20 @@ class ClaudeCaptionWriter:
                     "role": "user",
                     "content": [
                         {
+                            "type": "image",
+                            "source": {
+                                "type": "url",
+                                "url": styled_image_url,
+                            },
+                        },
+                        {
                             "type": "text",
                             "text": (
-                                f"Styled image URL: {styled_image_url}\n"
                                 f"Style brief: {style_brief.model_dump_json()}\n"
-                                f"Product details: {json.dumps(product_info)}"
+                                f"Product details: {json.dumps(product_info)}\n\n"
+                                "Generate a caption package for this styled image."
                             ),
-                        }
+                        },
                     ],
                 }
             ],
@@ -70,7 +80,9 @@ class ClaudeCaptionWriter:
                 response.raise_for_status()
                 data = response.json()
             text = data["content"][0]["text"]
+            logger.info("claude_caption_success", model=self.settings.claude_model)
             parsed = json.loads(text)
             return CaptionPackage.model_validate(parsed)
         except Exception as exc:
+            logger.error("claude_caption_failed", error=str(exc))
             raise CaptionError(str(exc)) from exc

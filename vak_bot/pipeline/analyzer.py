@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 
 import httpx
+import structlog
 
 from vak_bot.config import get_settings
 from vak_bot.pipeline.errors import AnalysisError
 from vak_bot.pipeline.prompts import load_analysis_prompt
 from vak_bot.schemas import StyleBrief
+
+logger = structlog.get_logger(__name__)
 
 
 class OpenAIReferenceAnalyzer:
@@ -54,20 +57,24 @@ class OpenAIReferenceAnalyzer:
         prompt = load_analysis_prompt()
         user_text = f"Reference caption: {reference_caption or 'N/A'}"
 
+        # Use the OpenAI Responses API (newer format for gpt-4.1+ and gpt-5 models)
         payload = {
             "model": self.settings.openai_model,
-            "response_format": {"type": "json_object"},
-            "messages": [
+            "input": [
                 {"role": "system", "content": prompt},
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": user_text},
-                        {"type": "image_url", "image_url": {"url": reference_image_url}},
+                        {"type": "input_text", "text": user_text},
+                        {"type": "input_image", "image_url": reference_image_url},
                     ],
                 },
             ],
-            "temperature": 0.2,
+            "text": {
+                "format": {
+                    "type": "json_object",
+                },
+            },
         }
 
         headers = {
@@ -77,11 +84,14 @@ class OpenAIReferenceAnalyzer:
 
         try:
             with httpx.Client(timeout=90.0) as client:
-                response = client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+                response = client.post("https://api.openai.com/v1/responses", headers=headers, json=payload)
                 response.raise_for_status()
                 data = response.json()
-                raw_json = data["choices"][0]["message"]["content"]
+                # Responses API returns output as a list of output items
+                raw_json = data["output"][0]["content"][0]["text"]
+                logger.info("openai_analysis_success", model=self.settings.openai_model)
                 parsed = json.loads(raw_json)
             return StyleBrief.model_validate(parsed)
         except Exception as exc:
+            logger.error("openai_analysis_failed", error=str(exc))
             raise AnalysisError(str(exc)) from exc

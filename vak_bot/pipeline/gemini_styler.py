@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+import base64
 import io
 import json
 import uuid
 from pathlib import Path
 
 import httpx
-from PIL import Image, ImageEnhance, ImageOps, ImageStat
+import structlog
+from PIL import Image, ImageEnhance, ImageOps
 
 from vak_bot.config import get_settings
 from vak_bot.pipeline.errors import StylingError
 from vak_bot.pipeline.prompts import load_brand_config, load_styling_prompt
 from vak_bot.schemas import StyleBrief, StyledVariant
 from vak_bot.storage import R2StorageClient
+
+logger = structlog.get_logger(__name__)
 
 
 def _create_placeholder_variant(source_url: str, mode: str) -> bytes:
@@ -38,6 +42,16 @@ def _create_placeholder_variant(source_url: str, mode: str) -> bytes:
     buf = io.BytesIO()
     image.save(buf, format="JPEG", quality=90)
     return buf.getvalue()
+
+
+def _download_image_as_base64(url: str) -> tuple[str, str]:
+    """Download an image URL and return (base64_data, mime_type)."""
+    with httpx.Client(timeout=30.0) as client:
+        resp = client.get(url)
+        resp.raise_for_status()
+        content_type = resp.headers.get("content-type", "image/jpeg")
+        mime = content_type.split(";")[0].strip()
+        return base64.b64encode(resp.content).decode("utf-8"), mime
 
 
 class GeminiStyler:
@@ -103,28 +117,52 @@ class GeminiStyler:
             f"{self.settings.gemini_image_model}:generateContent?key={self.settings.google_api_key}"
         )
 
+        # Download reference image as base64
+        try:
+            ref_b64, ref_mime = _download_image_as_base64(reference_image_url)
+        except Exception as exc:
+            raise StylingError(f"Failed to download reference image: {exc}") from exc
+
         for idx, modifier in enumerate(modifiers, start=1):
             prompt = self._build_prompt(style_brief, overlay_text, modifier)
             item_urls: list[str] = []
             for position, saree_url in enumerate(saree_images, start=1):
+                # Download saree image as base64
+                try:
+                    saree_b64, saree_mime = _download_image_as_base64(saree_url)
+                except Exception as exc:
+                    raise StylingError(f"Failed to download saree image: {exc}") from exc
+
+                # Build the request with inline image data
+                parts = [
+                    {"text": prompt},
+                    {"text": "Reference image (style inspiration):"},
+                    {"inlineData": {"mimeType": ref_mime, "data": ref_b64}},
+                    {"text": "Saree image (keep product accurate):"},
+                    {"inlineData": {"mimeType": saree_mime, "data": saree_b64}},
+                ]
+
                 payload = {
-                    "contents": [{"parts": [{"text": prompt}, {"text": f"Reference: {reference_image_url}"}, {"text": f"Saree: {saree_url}"}]}],
+                    "contents": [{"parts": parts}],
                     "generationConfig": {
                         "responseModalities": ["IMAGE", "TEXT"],
                     },
                 }
+
                 try:
-                    with httpx.Client(timeout=120.0) as client:
+                    with httpx.Client(timeout=180.0) as client:
                         resp = client.post(endpoint, json=payload)
                         resp.raise_for_status()
                         data = resp.json()
                 except Exception as exc:
+                    logger.error("gemini_styling_failed", error=str(exc), variant=idx, position=position)
                     raise StylingError(str(exc)) from exc
 
                 image_bytes = self._extract_image_bytes(data)
                 key = f"styled/post-{uuid.uuid4().hex}/variant-{idx}/item-{position}.jpg"
                 item_url = self.storage.upload_bytes(key, image_bytes)
                 item_urls.append(item_url)
+                logger.info("gemini_variant_generated", variant=idx, position=position)
 
             generated.append(
                 StyledVariant(
@@ -144,7 +182,5 @@ class GeminiStyler:
             for part in parts:
                 inline = part.get("inlineData")
                 if inline and inline.get("data"):
-                    import base64
-
                     return base64.b64decode(inline["data"])
         raise StylingError(f"Gemini did not return an image: {json.dumps(response_json)[:200]}")
