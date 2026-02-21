@@ -18,6 +18,7 @@ class MediaType(str, Enum):
 
 class SessionState(str, Enum):
     IDLE = "idle"
+    AWAITING_PHOTOS = "awaiting_photos"
     REVIEW_READY = "review_ready"
     AWAITING_CAPTION_EDIT = "awaiting_caption_edit"
     AWAITING_APPROVAL = "awaiting_approval"

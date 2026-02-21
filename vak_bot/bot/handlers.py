@@ -94,6 +94,11 @@ async def _process_ingestion(chat_id: int, user_id: int, text: str | None, photo
                 photo_urls = product_photo_urls(product)
 
         if not photo_urls:
+            # Save the reference URL in the session so photos can be sent separately
+            session = get_or_create_session(db, user_id, chat_id)
+            session.state = SessionState.AWAITING_PHOTOS.value
+            session.context_json = {"pending_source_url": parsed.source_url, "product_code": parsed.product_code}
+            db.commit()
             await respond(NEED_PHOTO_MESSAGE)
             return
 
@@ -248,6 +253,39 @@ def register_handlers(dispatcher: Dispatcher) -> None:
             chat_id=message.chat.id,
             user_id=message.from_user.id,
             text=message.text,
+            photo_urls=photo_urls,
+            photo_file_ids=photo_file_ids,
+            send_via_message=message,
+        )
+
+    @router.message(F.photo, ~F.media_group_id)
+    async def single_photo_handler(message: Message) -> None:
+        """Handle a single photo (not part of an album)."""
+        if not _is_allowed(message.from_user.id):
+            await message.answer(UNAUTHORIZED_MESSAGE)
+            return
+
+        photo_file_ids, photo_urls = await _extract_photo_urls(message)
+        caption_text = message.caption or ""
+
+        # Check if there's a pending reference URL from a previous text message
+        with SessionLocal() as db:
+            session = get_or_create_session(db, message.from_user.id, message.chat.id)
+            if session.state == SessionState.AWAITING_PHOTOS.value and session.context_json:
+                pending_url = session.context_json.get("pending_source_url", "")
+                if pending_url and not caption_text:
+                    caption_text = pending_url
+                session.state = SessionState.IDLE.value
+                db.commit()
+
+        if not caption_text:
+            await message.answer("Please send a photo with an Instagram/Pinterest link as the caption, or send the link first.")
+            return
+
+        await _process_ingestion(
+            chat_id=message.chat.id,
+            user_id=message.from_user.id,
+            text=caption_text,
             photo_urls=photo_urls,
             photo_file_ids=photo_file_ids,
             send_via_message=message,
