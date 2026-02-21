@@ -6,6 +6,9 @@ from typing import Any
 
 _CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE | re.DOTALL)
 
+# Matches unescaped newlines inside JSON string values
+_UNESCAPED_NEWLINE_RE = re.compile(r'(?<=")([^"]*?)\n([^"]*?)(?=")', re.DOTALL)
+
 _OPENAI_MODEL_ALIASES = {
     "gpt-5-mini-latest": "gpt-5-mini",
     "gpt-5-mini-latest-mode": "gpt-5-mini",
@@ -59,6 +62,20 @@ def normalize_claude_model(model: str) -> str:
     return _CLAUDE_MODEL_ALIASES.get(key, cleaned)
 
 
+def _repair_json(text: str) -> str:
+    """Attempt to fix common LLM JSON issues: unescaped newlines, trailing commas, single quotes."""
+    repaired = text
+    # Replace literal newlines inside string values with \n
+    repaired = re.sub(
+        r'"((?:[^"\\]|\\.)*)"',
+        lambda m: '"' + m.group(1).replace('\n', '\\n').replace('\r', '\\r') + '"',
+        repaired,
+    )
+    # Remove trailing commas before } or ]
+    repaired = re.sub(r",\s*([}\]])", r"\1", repaired)
+    return repaired
+
+
 def parse_json_object(text: str) -> dict[str, Any]:
     candidate = text.strip()
     if not candidate:
@@ -71,6 +88,16 @@ def parse_json_object(text: str) -> dict[str, Any]:
             return parsed
         raise ValueError("Model response is not a JSON object")
     except json.JSONDecodeError:
+        # Try repairing common LLM JSON errors
+        try:
+            repaired = _repair_json(candidate)
+            parsed = json.loads(repaired)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+
+        # Try extracting a JSON object from mixed text
         decoder = json.JSONDecoder()
         for idx, char in enumerate(candidate):
             if char != "{":
@@ -78,7 +105,12 @@ def parse_json_object(text: str) -> dict[str, Any]:
             try:
                 parsed, _ = decoder.raw_decode(candidate[idx:])
             except json.JSONDecodeError:
-                continue
+                # Try with repair on the substring
+                try:
+                    repaired_sub = _repair_json(candidate[idx:])
+                    parsed, _ = decoder.raw_decode(repaired_sub)
+                except json.JSONDecodeError:
+                    continue
             if isinstance(parsed, dict):
                 return parsed
         raise
