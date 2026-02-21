@@ -1,0 +1,37 @@
+I'm providing two images:
+1. REFERENCE IMAGE (first image): This is a style reference. Match its overall
+   aesthetic, mood, composition, and background style. DO NOT copy its product.
+2. SAREE PHOTO (second image): This is the actual product. This saree MUST appear
+   exactly as it is — do not alter, repaint, reshape, or modify the saree in any way.
+   Preserve every hand-painted detail, brushstroke, color, and texture exactly.
+
+YOUR TASK: Place the saree from the second image into a new styled composition
+that matches the visual aesthetic of the reference image.
+
+STYLE INSTRUCTIONS:
+(These will be filled dynamically from the style brief)
+- Layout: {layout_type}
+- Product placement: {product_placement}
+- Background: {suggested_bg_for_saree}
+- Lighting: {lighting}
+- Color mood: {palette_name}, {temperature} tones
+- Dominant colors in background: {dominant_colors}
+- Whitespace: {whitespace}
+- Vibe: {vibe_words}
+
+CRITICAL RULES:
+- The saree fabric, painting, colors, and details must be IDENTICAL to the input photo.
+- Only change what SURROUNDS the saree (background, props, lighting, staging).
+- Keep the image clean and professional — suitable for an Instagram post.
+- Use props that feel authentically Indian: brass items, marigolds, jasmine,
+  traditional accessories, silk fabric accents, diyas, etc.
+- No watermarks, no logos, no artificial-looking elements.
+
+TEXT OVERLAY (if applicable):
+- Render the provided text ON the image.
+- Font style: use serif or elegant handwritten style.
+- Position: bottom or as specified in the style brief.
+- Use the Vâk brand colors: deep charcoal (#2C2C2C) or warm cream (#F5F0E8)
+  depending on background contrast.
+- Text must be crisp, legible, and elegantly placed.
+- Do not obscure the saree with text.

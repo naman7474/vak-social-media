@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    command: uvicorn vak_bot.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - postgres
+
+  worker:
+    build: .
+    command: celery -A vak_bot.workers.celery_app.celery_app worker -Q pipeline,maintenance --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+
+  beat:
+    build: .
+    command: celery -A vak_bot.workers.celery_app.celery_app beat --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: vak_bot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
