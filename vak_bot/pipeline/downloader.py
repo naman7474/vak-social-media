@@ -52,18 +52,28 @@ class DataBrightDownloader:
         try:
             with httpx.Client(timeout=120.0) as client:
                 response = client.post(
-                    f"{BRIGHTDATA_SCRAPE_URL}?dataset_id={BRIGHTDATA_DATASET_ID}&notify=false&include_errors=true",
+                    f"{BRIGHTDATA_SCRAPE_URL}?dataset_id={BRIGHTDATA_DATASET_ID}&notify=false&include_errors=true&format=json",
                     headers=headers,
                     content=payload,
                 )
                 response.raise_for_status()
+                raw_text = response.text
+                logger.info("bright_data_raw_response", status=response.status_code, body=raw_text[:500])
                 results = response.json()
         except Exception as exc:
             logger.error("bright_data_request_failed", error=str(exc))
             raise DownloadError(str(exc)) from exc
 
+        # Handle different response formats
+        if isinstance(results, dict):
+            # Might be a snapshot_id response or a single post object
+            if "snapshot_id" in results:
+                raise DownloadError(f"Bright Data returned async snapshot_id: {results['snapshot_id']}. Sync mode may not be supported.")
+            # Single post object — wrap in a list
+            results = [results]
+
         if not isinstance(results, list) or len(results) == 0:
-            raise DownloadError("Empty response from Bright Data")
+            raise DownloadError(f"Unexpected response from Bright Data: {raw_text[:200]}")
 
         post_data = results[0]
 
