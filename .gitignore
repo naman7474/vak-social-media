@@ -5,7 +5,6 @@ __pycache__/
 .mypy_cache/
 .venv/
 .env
-alembic.ini
 *.db
 .DS_Store
 coverage.xml
