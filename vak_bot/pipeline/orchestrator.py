@@ -143,9 +143,18 @@ def run_generation_pipeline(post_id: int, chat_id: int) -> None:
                 original_bytes = _fetch_bytes(saree_sources[0])
 
                 persisted_preview_urls: list[str] = []
+                low_ssim_variants: list[int] = []
                 for variant in variants:
                     generated_bytes = _fetch_bytes(variant.preview_url)
                     is_valid, score = validator.verify_preserved(original_bytes, generated_bytes)
+                    if not is_valid:
+                        low_ssim_variants.append(variant.variant_index)
+                        logger.warning(
+                            "low_ssim_score",
+                            variant=variant.variant_index,
+                            ssim_score=round(score, 4),
+                            threshold=validator.threshold,
+                        )
                     record = PostVariant(
                         post_id=post_id,
                         variant_index=variant.variant_index,
@@ -159,11 +168,15 @@ def run_generation_pipeline(post_id: int, chat_id: int) -> None:
                         session.add(
                             PostVariantItem(variant_id=record.id, position=idx, image_url=image_url)
                         )
-                    if is_valid:
-                        persisted_preview_urls.append(variant.preview_url)
+                    persisted_preview_urls.append(variant.preview_url)
 
-                if not persisted_preview_urls:
-                    raise PipelineError("No valid variants passed saree preservation check")
+                if low_ssim_variants:
+                    logger.warning(
+                        "saree_preservation_warning",
+                        post_id=post_id,
+                        low_ssim_variants=low_ssim_variants,
+                        message="Some variants may have altered the saree. Human review recommended.",
+                    )
 
                 post.styled_image = persisted_preview_urls[0]
                 session.commit()
