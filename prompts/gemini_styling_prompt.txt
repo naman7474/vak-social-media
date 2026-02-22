@@ -11,8 +11,10 @@ appear in the final image EXACTLY as it is. This is the most important rule.
 YOUR TASK
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Create a styled Instagram product photograph of the saree from IMAGE 2, using
-the visual aesthetic of IMAGE 1 as inspiration for the ENVIRONMENT ONLY.
+Create a styled Instagram photograph of the saree from IMAGE 2, using
+the visual aesthetic of IMAGE 1 as inspiration.
+
+{model_instructions}
 
 Think of it this way: you are a product photographer. Someone handed you a
 beautiful hand-painted saree and said "make it look like THIS mood" while

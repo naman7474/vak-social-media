@@ -40,9 +40,12 @@ IMPORTANT RULES:
    - Appropriate for artisan/handloom products
    - Realistic to source or create (no exotic locations)
 
-5. Vâk does NOT use AI models or mannequins on Instagram. If the reference has a
-   model, extract the composition and framing style but note that Vâk will use
-   product-only shots (flat-lay, draped, hung, close-up).
+5. If the reference has a MODEL/PERSON wearing the product, set
+   "reference_has_model": true and describe the model's pose, framing, and how
+   the fabric is draped on them in "adaptation_notes". The styling tool will
+   recreate a similar scene with the saree on a model.
+   If the reference is product-only (flat-lay, draped, hung), set
+   "reference_has_model": false and describe the product display style.
 
 6. Think about Instagram safe zones:
    - Bottom 15% may be covered by caption preview on feed

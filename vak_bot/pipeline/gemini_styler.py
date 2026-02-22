@@ -367,7 +367,25 @@ class GeminiStyler:
         lighting_direction = lighting.direction if hasattr(lighting, "direction") else "ambient"
         shadow_style = lighting.shadow_style if hasattr(lighting, "shadow_style") else "soft-diffused"
 
+        # Model vs product-only instructions
+        if style_brief.reference_has_model:
+            model_instructions = (
+                "MODEL/PERSON SHOT: The reference image features a person/model. "
+                "Show the saree WORN or DRAPED on a person in a similar pose and framing. "
+                "Match the model's styling, posture, and composition from the reference. "
+                "The person should look like an Indian woman, styled naturally — not a mannequin. "
+                "Keep the saree's design, colors, and motifs EXACTLY as they are in IMAGE 2. "
+                "The environment, lighting, and background should match the reference mood."
+            )
+        else:
+            model_instructions = (
+                "PRODUCT-ONLY SHOT: The reference is a product/flat-lay style image. "
+                "Do NOT include any person or model. Show the saree as a styled product "
+                "photograph — folded, draped, or arranged on a surface with props."
+            )
+
         template_vars = {
+            "model_instructions": model_instructions,
             "layout_type": style_brief.layout_type,
             "product_placement": style_brief.composition.product_placement,
             "whitespace": style_brief.composition.whitespace,
