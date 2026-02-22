@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from vak_bot.enums import CallbackAction
 
 CALLBACK_PATTERN = re.compile(
-    r"^post:(?P<post_id>\d+):variant:(?P<variant>\d+):action:(?P<action>select|approve|redo|cancel|edit_caption)$"
+    r"^post:(?P<post_id>\d+):variant:(?P<variant>\d+):action:(?P<action>select|approve|redo|cancel|edit_caption|select_video|extend|reel_this)$"
 )
 
 

@@ -4,7 +4,7 @@ from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
-from vak_bot.enums import MediaType
+from vak_bot.enums import MediaType, VideoType
 
 
 class Composition(BaseModel):
@@ -49,6 +49,18 @@ class TextOverlaySpec(BaseModel):
     suggested_text_color: Optional[str] = None
 
 
+class VideoAnalysis(BaseModel):
+    camera_motion: str = "slow-pan"  # slow-pan, zoom-in, zoom-out, orbit, tilt-up, tilt-down, static, tracking
+    motion_type: str = "fabric-flow"  # fabric-flow, model-walk, reveal, product-rotate, parallax, morph
+    motion_elements: str = ""  # What should be moving
+    pacing: str = "slow-dreamy"  # slow-dreamy, medium-editorial, fast-energetic
+    audio_mood: str = "ambient-nature"  # ambient-nature, soft-classical, modern-minimal, upbeat, silence
+    transition_style: str = "none"  # none, fade, cut, zoom-through
+    recommended_duration: int = 8  # 4, 6, or 8 seconds
+    recommended_video_type: str = "fabric-flow"  # fabric-flow, close-up, lifestyle, reveal
+    video_adaptation_notes: str = ""
+
+
 class StyleBrief(BaseModel):
     layout_type: str = "flat-lay"
     composition: Composition = Field(default_factory=Composition)
@@ -61,6 +73,7 @@ class StyleBrief(BaseModel):
     vibe_words: list[str] = Field(min_length=2, max_length=5)
     reference_has_model: Optional[bool] = None
     adaptation_notes: str = ""
+    video_analysis: Optional[VideoAnalysis] = None
 
     @field_validator("lighting", mode="before")
     @classmethod
@@ -86,6 +99,11 @@ class CaptionPackage(BaseModel):
     alt_text: str
     overlay_text: Optional[str] = None
     caption_mood: Optional[str] = None
+
+
+class ReelCaptionPackage(CaptionPackage):
+    cover_frame_description: Optional[str] = None
+    thumb_offset_ms: int = 0
 
 
 class StyledVariant(BaseModel):

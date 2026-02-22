@@ -374,14 +374,15 @@ class GeminiStyler:
                 "Show the saree WORN or DRAPED on a person in a similar pose and framing. "
                 "Match the model's styling, posture, and composition from the reference. "
                 "The person should look like an Indian woman, styled naturally — not a mannequin. "
-                "Keep the saree's design, colors, and motifs EXACTLY as they are in IMAGE 2. "
+                "CRITICAL: Keep the saree's structural layout, design, colors, and motifs EXACTLY "
+                "as they are in IMAGE 2. DO NOT hallucinate new patterns or change the border/pallu. "
                 "The environment, lighting, and background should match the reference mood."
             )
         else:
             model_instructions = (
                 "PRODUCT-ONLY SHOT: The reference is a product/flat-lay style image. "
-                "Do NOT include any person or model. Show the saree as a styled product "
-                "photograph — folded, draped, or arranged on a surface with props."
+                "Do NOT include any person or model. Show the EXACT saree from IMAGE 2 as a styled product "
+                "photograph — folded, draped, or arranged on a surface with props. Do NOT change its design."
             )
 
         template_vars = {

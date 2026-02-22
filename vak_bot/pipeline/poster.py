@@ -131,6 +131,86 @@ class MetaGraphPoster:
         except Exception as exc:
             raise PublishError(str(exc)) from exc
 
+    def post_reel(
+        self,
+        video_s3_url: str,
+        caption: str,
+        thumb_offset_ms: int = 0,
+        share_to_feed: bool = True,
+    ) -> dict:
+        """Post a video as an Instagram Reel via Meta Graph API."""
+        if self.settings.dry_run:
+            return {
+                "id": f"dryrun_reel_{thumb_offset_ms}",
+                "permalink": "https://instagram.com/reel/dryrun",
+            }
+
+        ig_user_id = self.settings.instagram_business_account_id
+
+        try:
+            with httpx.Client(timeout=120.0) as client:
+                # Step 1: Create Reel media container
+                container_resp = client.post(
+                    f"{self._base}/{ig_user_id}/media",
+                    params=self._params(),
+                    data={
+                        "media_type": "REELS",
+                        "video_url": video_s3_url,
+                        "caption": caption,
+                        "share_to_feed": str(share_to_feed).lower(),
+                        "thumb_offset": str(thumb_offset_ms),
+                    },
+                )
+                container_resp.raise_for_status()
+                container_id = container_resp.json()["id"]
+
+                # Step 2: Poll container status until video is processed
+                import time
+                max_retries = 30
+                for _ in range(max_retries):
+                    status_resp = client.get(
+                        f"{self._base}/{container_id}",
+                        params={**self._params(), "fields": "status_code"},
+                    )
+                    status_resp.raise_for_status()
+                    status = status_resp.json().get("status_code")
+
+                    if status == "FINISHED":
+                        break
+                    elif status == "ERROR":
+                        raise PublishError("Instagram video processing failed")
+                    time.sleep(10)
+
+                # Step 3: Publish the Reel
+                publish_resp = client.post(
+                    f"{self._base}/{ig_user_id}/media_publish",
+                    params=self._params(),
+                    data={"creation_id": container_id},
+                )
+                publish_resp.raise_for_status()
+                media_id = publish_resp.json()["id"]
+
+                # Step 4: Get permalink
+                permalink_resp = client.get(
+                    f"{self._base}/{media_id}",
+                    params={**self._params(), "fields": "permalink"},
+                )
+                permalink_resp.raise_for_status()
+                permalink = permalink_resp.json().get("permalink", "")
+
+            return {"id": media_id, "permalink": permalink}
+        except httpx.HTTPStatusError as exc:
+            body = exc.response.text[:600] if exc.response is not None else ""
+            logger.error(
+                "meta_publish_http_error",
+                method="reel",
+                status_code=exc.response.status_code if exc.response is not None else None,
+                body=body,
+            )
+            raise PublishError(f"{exc} | {body}") from exc
+        except Exception as exc:
+            raise PublishError(str(exc)) from exc
+
     def refresh_page_token(self) -> dict:
         if self.settings.dry_run:
             return {"access_token": "dry-run-token", "expires_in": 60 * 24 * 3600}

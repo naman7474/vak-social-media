@@ -1,0 +1,27 @@
+You are also analyzing this reference for VIDEO generation.
+In addition to the standard style_brief fields, add:
+
+{
+  ... (all existing fields from image pipeline) ...
+
+  "video_analysis": {
+    "camera_motion": "slow-pan | zoom-in | zoom-out | orbit | tilt-up | tilt-down | static | tracking",
+    "motion_type": "fabric-flow | model-walk | reveal | product-rotate | parallax | morph",
+    "motion_elements": "What should be moving? e.g., 'fabric flowing in breeze', 'camera slowly zooming into brushwork detail', 'pallu lifting and falling'",
+    "pacing": "slow-dreamy | medium-editorial | fast-energetic",
+    "audio_mood": "ambient-nature | soft-classical | modern-minimal | upbeat | silence",
+    "transition_style": "none | fade | cut | zoom-through",
+    "recommended_duration": "4 | 6 | 8",
+    "recommended_video_type": "fabric-flow | close-up | lifestyle | reveal",
+    "video_adaptation_notes": "How to adapt this reference style into a saree video. E.g., 'The reference uses a slow zoom on jewelry — for a saree, zoom into the painted motif detail then pull back to show full drape.'"
+  }
+}
+
+IMPORTANT for video analysis:
+- For saree videos, fabric movement is always the hero. Suggest motion
+  that showcases the hand-painting: gentle breeze, slow unfurling, light play.
+- If the reference is a Reel/video, describe the camera movement and pacing
+  you observe. If it's a static image, suggest video movement that would
+  complement the mood.
+- Always suggest SLOW or MEDIUM pacing for luxury handmade products.
+  Fast pacing feels cheap — Vâk is the opposite.

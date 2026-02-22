@@ -13,23 +13,69 @@ from vak_bot.pipeline.llm_utils import (
     parse_json_object,
 )
 from vak_bot.pipeline.prompts import load_caption_prompt
-from vak_bot.schemas import CaptionPackage, StyleBrief
+from vak_bot.schemas import CaptionPackage, ReelCaptionPackage, StyleBrief
 
 logger = structlog.get_logger(__name__)
+
+_REEL_CAPTION_ADDON = """\
+When writing captions for REELS (video posts), adjust your approach:
+
+REEL CAPTION STRUCTURE:
+1. Hook line — MUST grab attention in first line (shown before "...more").
+   This is MORE important for Reels because people see it during autoplay.
+   Make it curiosity-driven or emotion-driven.
+2. 1-2 sentences about the piece
+3. Soft CTA — "Save this for your next [occasion]" works well for Reels
+4. Line break, then hashtags
+
+REEL-SPECIFIC RULES:
+- Shorter overall (150-200 words max, not 200-300)
+- First line is everything — it shows during autoplay. Make it count.
+- Add 2-3 Reels-discovery hashtags: #reelsinstagram #fashionreels #sareedraping #handpaintedfashion
+- Suggest a cover frame description (for the Reels thumbnail)
+- If the video has native audio, caption should acknowledge the sensory experience
+
+GOOD REEL HOOKS:
+- "Three days of painting. Eight seconds of magic."
+- "This is what hand-painted looks like in motion."
+- "No two pieces will ever move the same way."
+- "The brushwork you can't see in photos."
+
+Return as JSON with additional fields:
+{
+  "caption": "...",
+  "hashtags": "#tag1 #tag2 ...",
+  "alt_text": "Video showing ...",
+  "cover_frame_description": "Best frame for thumbnail",
+  "thumb_offset_ms": 3000
+}
+"""
 
 
 class ClaudeCaptionWriter:
     def __init__(self) -> None:
         self.settings = get_settings()
 
-    def generate_caption(self, styled_image_url: str, style_brief: StyleBrief, product_info: dict) -> CaptionPackage:
+    def generate_caption(self, styled_image_url: str, style_brief: StyleBrief, product_info: dict, is_reel: bool = False) -> CaptionPackage:
         if self.settings.dry_run:
             hashtags = (
                 "#vakstudios #handpaintedsaree #vakclothing #silksaree #artisanmade "
                 "#oneofone #sareelovers #slowfashionindia #craftedwithlove #handpaintedfashion "
-                "#weddingguest #diwalifashion #indianfashion #handloomlove #limitededition "
+                "#weddingguest #diwarifashion #indianfashion #handloomlove #limitededition "
                 "#madebyhands #wearart #sareestyle #shopindian #consciousfashion"
             )
+            if is_reel:
+                return ReelCaptionPackage(
+                    caption=(
+                        "Three days of painting. Eight seconds of magic. "
+                        "This hand-painted Vâk saree was built slowly by hand."
+                    ),
+                    hashtags=hashtags + " #reelsinstagram #fashionreels #sareedraping",
+                    alt_text="Video showing a hand-painted saree in motion, fabric flowing gently.",
+                    overlay_text=None,
+                    cover_frame_description="The moment the pallu catches light",
+                    thumb_offset_ms=3000,
+                )
             return CaptionPackage(
                 caption=(
                     "Some pieces don't just dress you, they speak for you. "
@@ -45,6 +91,8 @@ class ClaudeCaptionWriter:
             raise CaptionError("Missing ANTHROPIC_API_KEY")
 
         prompt = load_caption_prompt()
+        if is_reel:
+            prompt += "\n\n" + _REEL_CAPTION_ADDON
         model = normalize_claude_model(self.settings.claude_model)
         if model != self.settings.claude_model:
             logger.info("claude_model_normalized", configured=self.settings.claude_model, normalized=model)
@@ -67,6 +115,16 @@ class ClaudeCaptionWriter:
             "required": ["caption", "hashtags", "alt_text"],
             "additionalProperties": False,
         }
+        if is_reel:
+            caption_schema["properties"]["cover_frame_description"] = {
+                "type": ["string", "null"],
+                "description": "Best frame description for Reel thumbnail",
+            }
+            caption_schema["properties"]["thumb_offset_ms"] = {
+                "type": "integer",
+                "description": "Thumbnail timestamp offset in milliseconds",
+            }
+            caption_schema["required"] = ["caption", "hashtags", "alt_text", "thumb_offset_ms"]
 
         payload = {
             "model": model,
@@ -115,7 +173,9 @@ class ClaudeCaptionWriter:
                 data = response.json()
             text = extract_anthropic_response_text(data)
             logger.info("claude_caption_success", model=model, raw_text_preview=text[:300])
-            parsed = json.loads(text)
+            parsed = parse_json_object(text)
+            if is_reel:
+                return ReelCaptionPackage.model_validate(parsed)
             return CaptionPackage.model_validate(parsed)
         except httpx.HTTPStatusError as exc:
             body_preview = exc.response.text[:400] if exc.response is not None else ""

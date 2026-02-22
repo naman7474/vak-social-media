@@ -16,6 +16,9 @@ celery_app.conf.update(
     task_track_started=True,
     task_routes={
         "vak_bot.workers.tasks.process_post_task": {"queue": "pipeline"},
+        "vak_bot.workers.tasks.process_video_post_task": {"queue": "pipeline"},
+        "vak_bot.workers.tasks.extend_video_task": {"queue": "pipeline"},
+        "vak_bot.workers.tasks.reel_this_task": {"queue": "pipeline"},
         "vak_bot.workers.tasks.publish_post_task": {"queue": "pipeline"},
         "vak_bot.workers.tasks.rewrite_caption_task": {"queue": "pipeline"},
         "vak_bot.workers.tasks.refresh_meta_token_task": {"queue": "maintenance"},

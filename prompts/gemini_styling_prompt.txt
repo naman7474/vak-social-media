@@ -22,28 +22,30 @@ showing you the reference image. You would change the background, lighting,
 props, and composition — but you would never repaint or alter the saree itself.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PRODUCT INTEGRITY — NON-NEGOTIABLE RULES
+PRODUCT INTEGRITY — NON-NEGOTIABLE RULES (CRITICAL)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WARNING: DO NOT CHANGE THE SAREE IN ANY WAY. Let me repeat: DO NOT GENERATE
+A NEW SAREE. You must seamlessly extract the EXACT saree from IMAGE 2 and place
+it into the new environment dictated by IMAGE 1. 
 
 This is a hand-painted saree. Every brushstroke, color variation, and texture
 is the actual artisan's work. The customer will receive this EXACT piece.
-Any alteration would be dishonest.
+Any alteration is UNACCEPTABLE and will result in failure.
 
-PRESERVE EXACTLY:
-✓ Every painted motif, pattern, and brushstroke
-✓ The exact colors of the saree fabric (do not color-grade the saree itself)
-✓ The texture and weave of the fabric
-✓ The border and pallu designs exactly as they appear
-✓ Any imperfections — they are part of the handmade character
-✓ The sheen or matte quality of the fabric
+PRESERVE EXACTLY (MANDATORY):
+✓ The EXACT original saree from IMAGE 2 without any generative changes to its design.
+✓ Every painted motif, pattern, and brushstroke MUST be identical to IMAGE 2.
+✓ The exact colors of the saree fabric MUST be identical to IMAGE 2. Do not color-grade it.
+✓ The exact border and pallu designs MUST be identical to IMAGE 2.
+✓ The original fabric texture, weave, and any natural imperfections.
 
-NEVER ALTER:
-✗ Do not repaint, recolor, or modify any part of the saree
-✗ Do not add patterns, motifs, or embellishments that aren't in the original
-✗ Do not smooth out the fabric texture or remove natural creases
-✗ Do not change the color temperature of the saree (only the environment)
-✗ Do not stretch, warp, or reshape the fabric
-✗ Do not make the saree look like a digital render — it must look real and tactile
+NEVER ALTER (MANDATORY):
+✗ DO NOT hallucinate, repaint, recolor, or modify ANY part of the saree's design.
+✗ DO NOT add patterns, motifs, or embellishments that aren't in IMAGE 2.
+✗ DO NOT change the structural layout of the motifs. If there's a bird on the left, it stays on the left.
+✗ DO NOT change the color temperature or lighting on the saree in a way that alters its true colors.
+✗ DO NOT make the saree look like a digital render — it must look like the real, physical product from IMAGE 2.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STYLE INSTRUCTIONS (filled dynamically from style brief)

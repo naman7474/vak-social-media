@@ -10,7 +10,7 @@ from vak_bot.pipeline.llm_utils import (
     normalize_openai_model,
     parse_json_object,
 )
-from vak_bot.pipeline.prompts import load_analysis_prompt
+from vak_bot.pipeline.prompts import load_analysis_prompt, load_video_analysis_prompt
 from vak_bot.schemas import StyleBrief
 
 logger = structlog.get_logger(__name__)
@@ -20,7 +20,7 @@ class OpenAIReferenceAnalyzer:
     def __init__(self) -> None:
         self.settings = get_settings()
 
-    def analyze_reference(self, reference_image_url: str, reference_caption: str | None) -> StyleBrief:
+    def analyze_reference(self, reference_image_url: str, reference_caption: str | None, is_video: bool = False) -> StyleBrief:
         if self.settings.dry_run:
             return StyleBrief.model_validate(
                 {
@@ -58,6 +58,10 @@ class OpenAIReferenceAnalyzer:
             raise AnalysisError("Missing OPENAI_API_KEY")
 
         prompt = load_analysis_prompt()
+        if is_video:
+            video_addon = load_video_analysis_prompt()
+            if video_addon:
+                prompt = f"{prompt}\n\n{video_addon}"
         user_text = f"Reference caption: {reference_caption or 'N/A'}"
 
         # Use the OpenAI Responses API (newer format for gpt-4.1+ and gpt-5 models)

@@ -66,6 +66,13 @@ def upgrade() -> None:
         sa.Column("error_code", sa.String(length=80), nullable=True),
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column("detected_media_type", sa.String(length=10), nullable=True),
+        sa.Column("video_url", sa.String(length=500), nullable=True),
+        sa.Column("video_style_brief", sa.JSON(), nullable=True),
+        sa.Column("video_type", sa.String(length=20), nullable=True),
+        sa.Column("start_frame_url", sa.String(length=500), nullable=True),
+        sa.Column("video_duration", sa.Integer(), nullable=True),
+        sa.Column("thumb_offset_ms", sa.Integer(), nullable=True),
     )
     op.create_index("ix_posts_status_created_at", "posts", ["status", "created_at"])
 
@@ -127,8 +134,23 @@ def upgrade() -> None:
         sa.Column("finished_at", sa.DateTime(timezone=True), nullable=True),
     )
 
+    op.create_table(
+        "video_jobs",
+        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column("post_id", sa.Integer(), sa.ForeignKey("posts.id"), nullable=False),
+        sa.Column("veo_operation_id", sa.String(length=200), nullable=True),
+        sa.Column("status", sa.String(length=20), nullable=False, server_default="pending"),
+        sa.Column("variation_number", sa.Integer(), nullable=False),
+        sa.Column("video_url", sa.String(length=500), nullable=True),
+        sa.Column("generation_time_seconds", sa.Integer(), nullable=True),
+        sa.Column("prompt_used", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+    )
+
 
 def downgrade() -> None:
+    op.drop_table("video_jobs")
     op.drop_table("job_runs")
     op.drop_index("ix_telegram_sessions_user_state", table_name="telegram_sessions")
     op.drop_table("telegram_sessions")

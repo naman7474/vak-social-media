@@ -7,6 +7,7 @@ from collections import defaultdict
 import structlog
 from aiogram import Dispatcher, F, Router
 from aiogram.types import CallbackQuery, Message
+from sqlalchemy import func
 
 from vak_bot.bot.callbacks import parse_callback
 from vak_bot.bot.parser import is_supported_reference_url, parse_message_text
@@ -15,13 +16,15 @@ from vak_bot.bot.texts import (
     HELP_MESSAGE,
     NEED_PHOTO_MESSAGE,
     PROCESSING_MESSAGE,
+    REEL_DETECTED_MESSAGE,
     UNAUTHORIZED_MESSAGE,
     UNSUPPORTED_LINK_MESSAGE,
     V1_SCHEDULING_MESSAGE,
+    VIDEO_PROCESSING_MESSAGE,
     WELCOME_MESSAGE,
 )
 from vak_bot.config import get_settings
-from vak_bot.db.models import Post
+from vak_bot.db.models import Post, Product, VideoJob
 from vak_bot.db.session import SessionLocal
 from vak_bot.enums import CallbackAction, PostStatus, SessionState
 from vak_bot.services.post_service import (
@@ -31,13 +34,21 @@ from vak_bot.services.post_service import (
     product_photo_urls,
     user_posts_today,
 )
-from vak_bot.workers.tasks import process_post_task, publish_post_task, rewrite_caption_task
+from vak_bot.workers.tasks import (
+    extend_video_task,
+    process_post_task,
+    process_video_post_task,
+    publish_post_task,
+    reel_this_task,
+    rewrite_caption_task,
+)
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
 
 ALBUM_CACHE: dict[str, dict] = {}
 ALBUM_LOCK = asyncio.Lock()
+VALID_VIDEO_TYPES = {"fabric-flow", "close-up", "lifestyle", "reveal"}
 
 
 def _is_allowed(user_id: int) -> bool:
@@ -65,6 +76,20 @@ async def _extract_photo_urls(message: Message) -> tuple[list[str], list[str]]:
     for file_id in file_ids:
         urls.append(await _file_id_to_download_url(message, file_id))
     return file_ids, urls
+
+
+def _normalize_video_type(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    cleaned = raw.lower().strip()
+    aliases = {
+        "closeup": "close-up",
+        "fabric flow": "fabric-flow",
+    }
+    normalized = aliases.get(cleaned, cleaned)
+    if normalized in VALID_VIDEO_TYPES:
+        return normalized
+    return None
 
 
 async def _process_ingestion(chat_id: int, user_id: int, text: str | None, photo_urls: list[str], photo_file_ids: list[str], send_via_message: Message | None = None) -> None:
@@ -118,7 +143,25 @@ async def _process_ingestion(chat_id: int, user_id: int, text: str | None, photo
         db.commit()
 
     await respond(PROCESSING_MESSAGE)
-    process_post_task.delay(post.id, chat_id)
+
+    # Auto-detect media type and route to the right pipeline
+    from vak_bot.pipeline.route_detector import resolve_pipeline_type
+    pipeline_type = resolve_pipeline_type(parsed.source_url, text)
+    if parsed.media_override:  # explicit user override takes priority
+        pipeline_type = parsed.media_override
+
+    # Store detected media type
+    with SessionLocal() as db_update:
+        p = db_update.get(Post, post.id)
+        if p:
+            p.detected_media_type = pipeline_type
+            db_update.commit()
+
+    if pipeline_type == "reel":
+        await respond(REEL_DETECTED_MESSAGE)
+        process_video_post_task.delay(post.id, chat_id)
+    else:
+        process_post_task.delay(post.id, chat_id)
 
 
 async def _handle_action(message: Message, action: str) -> bool:
@@ -137,9 +180,20 @@ async def _handle_action(message: Message, action: str) -> bool:
         action_lower = action.lower().strip()
 
         if action_lower in {"1", "2", "3"}:
-            post.selected_variant_index = int(action_lower)
+            selected = int(action_lower)
+            post.selected_variant_index = selected
+            if post.media_type == "reel":
+                video_job = (
+                    db.query(VideoJob)
+                    .filter(VideoJob.post_id == post.id, VideoJob.variation_number == selected)
+                    .first()
+                )
+                if not video_job or not video_job.video_url:
+                    await message.answer("Video option not found. Choose 1 after preview is ready.")
+                    return True
+                post.video_url = video_job.video_url
             db.commit()
-            await message.answer(f"Selected option {action_lower}. Reply 'approve' when ready.")
+            await message.answer(f"Selected option {selected}. Reply 'approve' when ready.")
             return True
 
         if action_lower == "edit caption":
@@ -150,11 +204,33 @@ async def _handle_action(message: Message, action: str) -> bool:
             )
             return True
 
-        if action_lower == "redo":
+        if action_lower == "redo" or action_lower.startswith("redo "):
+            requested_video_type = None
+            if action_lower.startswith("redo "):
+                requested_video_type = _normalize_video_type(action_lower.split(" ", 1)[1])
+                if not requested_video_type:
+                    await message.answer("Unknown video style. Try: fabric-flow, close-up, lifestyle, or reveal.")
+                    return True
+
             post.status = PostStatus.PROCESSING.value
+            if requested_video_type:
+                post.video_type = requested_video_type
             db.commit()
-            await message.answer("Regenerating options...")
-            process_post_task.delay(post.id, chat_id)
+
+            if post.media_type == "reel" or requested_video_type:
+                post.media_type = "reel"
+                db.commit()
+                if post.styled_image:
+                    reel_this_task.delay(post.id, chat_id)
+                else:
+                    process_video_post_task.delay(post.id, chat_id)
+                if requested_video_type:
+                    await message.answer(f"Regenerating Reel options with {requested_video_type} style...")
+                else:
+                    await message.answer("Regenerating Reel options...")
+            else:
+                await message.answer("Regenerating options...")
+                process_post_task.delay(post.id, chat_id)
             return True
 
         if action_lower == "cancel":
@@ -185,6 +261,18 @@ async def _handle_action(message: Message, action: str) -> bool:
             session.state = SessionState.REVIEW_READY.value
             db.commit()
             await message.answer("Updating caption...")
+            return True
+
+        if action_lower == "reel this":
+            reel_this_task.delay(post.id, chat_id)
+            await message.answer("Converting to a Reel... This takes ~5 minutes.")
+            return True
+
+        if action_lower == "extend" or action_lower.startswith("extend "):
+            parts = action_lower.split()
+            variation = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else (post.selected_variant_index or 1)
+            extend_video_task.delay(post.id, chat_id, variation)
+            await message.answer("Extending video by 8 seconds...")
             return True
 
     return False
@@ -236,12 +324,159 @@ def register_handlers(dispatcher: Dispatcher) -> None:
 
         parsed = parse_message_text(message.text)
 
-        if parsed.command and parsed.command.startswith("/") and parsed.command not in {"/start", "/help"}:
+        if parsed.command == "/recent":
+            with SessionLocal() as db:
+                posts = (
+                    db.query(Post)
+                    .filter(Post.created_by == str(message.from_user.id))
+                    .order_by(Post.created_at.desc())
+                    .limit(5)
+                    .all()
+                )
+            if not posts:
+                await message.answer("No recent posts found.")
+                return
+            lines = ["Recent posts:"]
+            for post in posts:
+                icon = "🎬" if post.media_type == "reel" else "🖼"
+                lines.append(f"{icon} #{post.id} • {post.status} • {post.media_type}")
+            await message.answer("\n".join(lines))
+            return
+
+        if parsed.command == "/queue":
+            with SessionLocal() as db:
+                queued = (
+                    db.query(Post)
+                    .filter(
+                        Post.created_by == str(message.from_user.id),
+                        Post.status.in_(
+                            [PostStatus.DRAFT.value, PostStatus.PROCESSING.value, PostStatus.APPROVED.value]
+                        ),
+                    )
+                    .order_by(Post.created_at.desc())
+                    .limit(10)
+                    .all()
+                )
+            if not queued:
+                await message.answer("Queue is empty.")
+                return
+            lines = ["Queue:"]
+            for post in queued:
+                lines.append(f"#{post.id} • {post.status} • {post.media_type}")
+            await message.answer("\n".join(lines))
+            return
+
+        if parsed.command == "/reelqueue":
+            with SessionLocal() as db:
+                rows = (
+                    db.query(VideoJob, Post)
+                    .join(Post, VideoJob.post_id == Post.id)
+                    .filter(Post.created_by == str(message.from_user.id), VideoJob.status.in_(["pending", "generating"]))
+                    .order_by(VideoJob.created_at.desc())
+                    .limit(10)
+                    .all()
+                )
+            if not rows:
+                await message.answer("No pending Reel jobs.")
+                return
+            lines = ["Reel queue:"]
+            for job, post in rows:
+                lines.append(f"post #{post.id} • variation {job.variation_number} • {job.status}")
+            await message.answer("\n".join(lines))
+            return
+
+        if parsed.command == "/products":
+            with SessionLocal() as db:
+                products = (
+                    db.query(Product)
+                    .order_by(Product.product_code.asc())
+                    .limit(20)
+                    .all()
+                )
+            if not products:
+                await message.answer("No products available.")
+                return
+            lines = ["Products:"]
+            for product in products:
+                name = product.product_name or "-"
+                lines.append(f"{product.product_code} • {name}")
+            await message.answer("\n".join(lines))
+            return
+
+        if parsed.command == "/stats":
+            with SessionLocal() as db:
+                total = db.query(func.count(Post.id)).filter(Post.created_by == str(message.from_user.id)).scalar() or 0
+                reels = (
+                    db.query(func.count(Post.id))
+                    .filter(Post.created_by == str(message.from_user.id), Post.media_type == "reel")
+                    .scalar()
+                    or 0
+                )
+                posted = (
+                    db.query(func.count(Post.id))
+                    .filter(Post.created_by == str(message.from_user.id), Post.status == PostStatus.POSTED.value)
+                    .scalar()
+                    or 0
+                )
+            await message.answer(
+                "Stats:\n"
+                f"- Total posts: {total}\n"
+                f"- Reels created: {reels}\n"
+                f"- Posted successfully: {posted}\n"
+                "- Reel views/reach tracking is not available in this build."
+            )
+            return
+
+        if parsed.command == "/cancel":
+            parts = (parsed.free_text or "").split()
+            if len(parts) != 2 or not parts[1].isdigit():
+                await message.answer("Usage: /cancel <post_id>")
+                return
+            post_id = int(parts[1])
+            with SessionLocal() as db:
+                post = db.get(Post, post_id)
+                if not post or post.created_by != str(message.from_user.id):
+                    await message.answer(f"Post #{post_id} not found.")
+                    return
+                post.status = PostStatus.CANCELLED.value
+                session = get_or_create_session(db, message.from_user.id, message.chat.id)
+                if session.post_id == post_id:
+                    session.state = SessionState.IDLE.value
+                db.commit()
+            await message.answer(f"Cancelled post #{post_id}.")
+            return
+
+        if parsed.command == "/reel":
+            if not parsed.source_url:
+                await message.answer("Usage: /reel <instagram_or_pinterest_link> [VAK-XXX]")
+                return
+            photo_file_ids, photo_urls = await _extract_photo_urls(message)
+            await _process_ingestion(
+                chat_id=message.chat.id,
+                user_id=message.from_user.id,
+                text=message.text,
+                photo_urls=photo_urls,
+                photo_file_ids=photo_file_ids,
+                send_via_message=message,
+            )
+            return
+
+        if parsed.command and parsed.command.startswith("/") and parsed.command not in {
+            "/start",
+            "/help",
+            "/recent",
+            "/queue",
+            "/cancel",
+            "/products",
+            "/stats",
+            "/reelqueue",
+            "/reel",
+        }:
             await message.answer("Unknown command. Use /help.")
             return
 
-        if parsed.command in {"1", "2", "3", "approve", "redo", "cancel", "edit caption", "post now"} or (
-            parsed.command and parsed.command.startswith("schedule")
+        if parsed.command in {"1", "2", "3", "approve", "redo", "cancel", "edit caption", "post now", "reel this", "extend"} or (
+            parsed.command and (parsed.command.startswith("schedule") or parsed.command.startswith("extend ") or parsed.command.startswith("redo "))
         ):
             handled = await _handle_action(message, parsed.command)
             if not handled:
@@ -349,8 +584,15 @@ def register_handlers(dispatcher: Dispatcher) -> None:
             elif parsed.action == CallbackAction.REDO:
                 post.status = PostStatus.PROCESSING.value
                 db.commit()
-                process_post_task.delay(post.id, callback.message.chat.id)
-                await callback.message.answer("Regenerating options...")
+                if post.media_type == "reel":
+                    if post.styled_image:
+                        reel_this_task.delay(post.id, callback.message.chat.id)
+                    else:
+                        process_video_post_task.delay(post.id, callback.message.chat.id)
+                    await callback.message.answer("Regenerating Reel options...")
+                else:
+                    process_post_task.delay(post.id, callback.message.chat.id)
+                    await callback.message.answer("Regenerating options...")
             elif parsed.action == CallbackAction.CANCEL:
                 post.status = PostStatus.CANCELLED.value
                 db.commit()
@@ -359,6 +601,27 @@ def register_handlers(dispatcher: Dispatcher) -> None:
                 post.status = PostStatus.APPROVED.value
                 db.commit()
                 await callback.message.answer("Approved. Reply 'post now' to publish.")
+            elif parsed.action == CallbackAction.SELECT_VIDEO:
+                # Video variant selection
+                from vak_bot.db.models import VideoJob
+                video_job = (
+                    db.query(VideoJob)
+                    .filter(VideoJob.post_id == parsed.post_id, VideoJob.variation_number == parsed.variant)
+                    .first()
+                )
+                if video_job and video_job.video_url:
+                    post.video_url = video_job.video_url
+                    post.selected_variant_index = parsed.variant
+                    db.commit()
+                    await callback.message.answer(f"Selected option {parsed.variant}. Reply 'approve' when ready.")
+                else:
+                    await callback.message.answer("Video option not found.")
+            elif parsed.action == CallbackAction.EXTEND:
+                extend_video_task.delay(post.id, callback.message.chat.id, post.selected_variant_index or 1)
+                await callback.message.answer("Extending video by 8 seconds...")
+            elif parsed.action == CallbackAction.REEL_THIS:
+                reel_this_task.delay(post.id, callback.message.chat.id)
+                await callback.message.answer("Converting to a Reel... This takes ~5 minutes.")
 
         await callback.answer()
 

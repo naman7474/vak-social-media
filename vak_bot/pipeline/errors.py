@@ -15,7 +15,7 @@ class PrivatePostError(PipelineError):
 
 class UnsupportedMediaError(PipelineError):
     error_code = "unsupported_media"
-    user_message = "This looks like a reel/video. This bot handles image posts only."
+    user_message = "I can't determine the media type. Want me to make an image post or a Reel?"
 
 
 class AnalysisError(PipelineError):
@@ -41,3 +41,23 @@ class CaptionError(PipelineError):
 class PublishError(PipelineError):
     error_code = "publish_error"
     user_message = "Posting failed. I've saved your post — want me to try again or you can post manually?"
+
+
+class VeoGenerationError(PipelineError):
+    error_code = "veo_generation_error"
+    user_message = "Video generation hit a snag. Want me to try again, or should I make this an image post instead?"
+
+
+class VeoTimeoutError(PipelineError):
+    error_code = "veo_timeout"
+    user_message = "Still generating — Veo is taking longer than usual. I'll send it as soon as it's ready."
+
+
+class VideoQualityError(PipelineError):
+    error_code = "video_quality_error"
+    user_message = "The video didn't come out great. Let me try with a different motion style..."
+
+
+class SceneExtensionError(PipelineError):
+    error_code = "scene_extension_error"
+    user_message = "Couldn't extend the video. Want to post the 8-second version instead?"

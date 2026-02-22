@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from aiogram import Bot
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, InputMediaVideo
 
 from vak_bot.bot.callbacks import make_callback
 from vak_bot.config import get_settings
@@ -86,3 +86,65 @@ async def _send_review_async(chat_id: int, post_id: int, image_urls: list[str], 
 
 def send_review_package(chat_id: int, post_id: int, image_urls: list[str], caption: str, hashtags: str) -> None:
     _run(_send_review_async(chat_id, post_id, image_urls, caption, hashtags))
+
+
+def build_video_review_keyboard(post_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="1", callback_data=make_callback(post_id, 1, CallbackAction.SELECT_VIDEO)),
+            ],
+            [
+                InlineKeyboardButton(text="Extend", callback_data=make_callback(post_id, 0, CallbackAction.EXTEND)),
+                InlineKeyboardButton(
+                    text="Edit Caption",
+                    callback_data=make_callback(post_id, 0, CallbackAction.EDIT_CAPTION),
+                ),
+            ],
+            [
+                InlineKeyboardButton(text="Redo", callback_data=make_callback(post_id, 0, CallbackAction.REDO)),
+                InlineKeyboardButton(text="Approve", callback_data=make_callback(post_id, 0, CallbackAction.APPROVE)),
+                InlineKeyboardButton(text="Cancel", callback_data=make_callback(post_id, 0, CallbackAction.CANCEL)),
+            ],
+        ]
+    )
+
+
+async def _send_video_review_async(
+    chat_id: int,
+    post_id: int,
+    video_urls: list[str],
+    start_frame_url: str,
+    caption: str,
+    hashtags: str,
+) -> None:
+    bot = _bot()
+    try:
+        # Send start frame as context
+        if start_frame_url:
+            await bot.send_photo(chat_id=chat_id, photo=start_frame_url, caption="🖼 Start frame")
+
+        # Send video variation(s)
+        for idx, url in enumerate(video_urls[:1], start=1):
+            await bot.send_video(chat_id=chat_id, video=url, caption=f"Option {idx}")
+
+        message = (
+            "🎬 Here is your Reel preview:\n\n"
+            f'Caption:\n"{caption}"\n\n'
+            f"Hashtags:\n{hashtags}\n\n"
+            "Reply with 1 to select, or use the buttons below."
+        )
+        await bot.send_message(chat_id=chat_id, text=message, reply_markup=build_video_review_keyboard(post_id))
+    finally:
+        await bot.session.close()
+
+
+def send_video_review_package(
+    chat_id: int,
+    post_id: int,
+    video_urls: list[str],
+    start_frame_url: str,
+    caption: str,
+    hashtags: str,
+) -> None:
+    _run(_send_video_review_async(chat_id, post_id, video_urls, start_frame_url, caption, hashtags))

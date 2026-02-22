@@ -1,0 +1,44 @@
+# Veo Video Prompt Templates for Vâk Sarees
+
+## Video Type Presets
+
+### fabric-flow
+Gentle breeze causes the sheer saree fabric to flow and billow softly.
+The pallu lifts and catches light, revealing the translucency and
+hand-painted details. Camera slowly pans across the fabric.
+Soft ambient sound of fabric rustling.
+
+### close-up
+Slow cinematic zoom into the hand-painted details on the saree,
+revealing individual brushstrokes and color variations. Camera pulls
+back slowly to show the full drape. Soft, meditative ambient music.
+
+### lifestyle
+A graceful woman wearing the saree takes a slow step forward,
+the fabric flowing with her movement. Warm natural lighting.
+Shallow depth of field. Cinematic fashion film aesthetic.
+Soft ambient sounds.
+
+### reveal
+The saree starts flat on a surface, then is slowly lifted by
+an unseen hand, revealing its full drape and hand-painted motifs.
+Camera tracks the fabric as it unfurls. Studio lighting.
+Satisfying fabric movement sounds.
+
+## Variation Modifiers
+
+### Modifier 1 (Dreamy)
+Use slow, gentle camera movement. Dreamy and meditative pacing.
+
+### Modifier 2 (Editorial)
+Use subtle dynamic movement. Slightly more energy, editorial pacing.
+
+## Critical Rules (Always Included)
+
+- The saree fabric, hand-painted details, and colors must remain EXACTLY as shown
+  in the starting image. Do not alter, repaint, or modify the saree.
+- Keep the video clean and elegant — luxury fashion brand aesthetic.
+- No watermarks, no logos, no text overlays.
+- Indian context — any props should feel authentic (brass, flowers, silk).
+- Cinematic quality, editorial fashion film look.
+- Portrait orientation (9:16) for Instagram Reels.

@@ -22,3 +22,16 @@ def test_parse_action_command() -> None:
     parsed = parse_message_text("edit caption")
     assert parsed.command == "edit caption"
     assert parsed.source_url is None
+
+
+def test_parse_reel_command_with_url() -> None:
+    parsed = parse_message_text("/reel https://www.instagram.com/p/abc123 VAK-042")
+    assert parsed.command == "/reel"
+    assert parsed.source_url == "https://www.instagram.com/p/abc123"
+    assert parsed.product_code == "VAK-042"
+    assert parsed.media_override == "reel"
+
+
+def test_parse_redo_with_video_type() -> None:
+    parsed = parse_message_text("redo close-up")
+    assert parsed.command == "redo close-up"

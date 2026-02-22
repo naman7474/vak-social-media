@@ -25,3 +25,19 @@ def load_styling_prompt() -> str:
 @lru_cache(maxsize=1)
 def load_brand_config() -> dict:
     return json.loads((PROMPTS_DIR / "brand_config.json").read_text(encoding="utf-8"))
+
+
+@lru_cache(maxsize=1)
+def load_video_analysis_prompt() -> str:
+    path = PROMPTS_DIR / "analysis_prompt_video.txt"
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8").strip()
+
+
+@lru_cache(maxsize=1)
+def load_veo_prompt() -> str:
+    path = PROMPTS_DIR / "veo_video_prompt.txt"
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8").strip()

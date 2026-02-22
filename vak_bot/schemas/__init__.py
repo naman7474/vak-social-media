@@ -4,8 +4,10 @@ from vak_bot.schemas.contracts import (
     Composition,
     IngestionRequest,
     PostResult,
+    ReelCaptionPackage,
     StyleBrief,
     StyledVariant,
+    VideoAnalysis,
 )
 
 __all__ = [
@@ -13,6 +15,8 @@ __all__ = [
     "StyleBrief",
     "StyledVariant",
     "CaptionPackage",
+    "ReelCaptionPackage",
+    "VideoAnalysis",
     "ApprovalPayload",
     "PostResult",
     "Composition",

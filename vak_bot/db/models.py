@@ -84,10 +84,20 @@ class Post(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    # ── Video / Reel fields ──
+    detected_media_type: Mapped[str | None] = mapped_column(String(10), nullable=True)  # "image" | "reel"
+    video_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    video_style_brief: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    video_type: Mapped[str | None] = mapped_column(String(20), nullable=True)  # fabric-flow, close-up, etc.
+    start_frame_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    video_duration: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    thumb_offset_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     product: Mapped[Product | None] = relationship(back_populates="posts")
     variants: Mapped[list[PostVariant]] = relationship(back_populates="post", cascade="all, delete-orphan")
     sessions: Mapped[list[TelegramSession]] = relationship(back_populates="post", cascade="all, delete-orphan")
     job_runs: Mapped[list[JobRun]] = relationship(back_populates="post", cascade="all, delete-orphan")
+    video_jobs: Mapped[list[VideoJob]] = relationship(back_populates="post", cascade="all, delete-orphan")
 
 
 class PostVariant(Base):
@@ -148,3 +158,20 @@ class JobRun(Base):
 
 Index("ix_posts_status_created_at", Post.status, Post.created_at)
 Index("ix_telegram_sessions_user_state", TelegramSession.telegram_user_id, TelegramSession.state)
+
+
+class VideoJob(Base):
+    __tablename__ = "video_jobs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), nullable=False)
+    veo_operation_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
+    variation_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    video_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    generation_time_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    prompt_used: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    post: Mapped[Post] = relationship(back_populates="video_jobs")

@@ -32,6 +32,18 @@ class Settings(BaseSettings):
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     gemini_image_model: str = Field(default="gemini-3-pro-image-preview", alias="GEMINI_IMAGE_MODEL")
 
+    # Veo 3.1 (video generation — uses the same Google API key as Gemini)
+    veo_model: str = Field(default="veo-3.1-generate-preview", alias="VEO_MODEL")
+    veo_default_resolution: str = Field(default="1080p", alias="VEO_DEFAULT_RESOLUTION")
+    veo_default_aspect_ratio: str = Field(default="9:16", alias="VEO_DEFAULT_ASPECT_RATIO")
+    veo_poll_interval_seconds: int = Field(default=10, alias="VEO_POLL_INTERVAL_SECONDS")
+    veo_max_poll_duration_seconds: int = Field(default=600, alias="VEO_MAX_POLL_DURATION_SECONDS")
+
+    # Video processing
+    ffmpeg_path: str = Field(default="ffmpeg", alias="FFMPEG_PATH")
+    max_reel_duration_seconds: int = Field(default=90, alias="MAX_REEL_DURATION_SECONDS")
+    default_reel_duration_seconds: int = Field(default=8, alias="DEFAULT_REEL_DURATION_SECONDS")
+
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     claude_model: str = Field(default="claude-sonnet-4-6", alias="CLAUDE_MODEL")
 

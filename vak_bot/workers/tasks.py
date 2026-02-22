@@ -12,6 +12,9 @@ from vak_bot.pipeline.orchestrator import (
     run_caption_rewrite,
     run_generation_pipeline,
     run_publish,
+    run_reel_this_conversion,
+    run_video_extension,
+    run_video_generation_pipeline,
 )
 from vak_bot.pipeline.poster import MetaGraphPoster
 from vak_bot.storage import R2StorageClient
@@ -61,3 +64,21 @@ def cleanup_reference_images_task() -> int:
     deleted = purge_old_reference_images(days=30, storage_client=storage)
     logger.info("cleanup_reference_images deleted=%s", deleted)
     return deleted
+
+
+@celery_app.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 2})
+def process_video_post_task(self, post_id: int, chat_id: int) -> None:
+    logger.info("process_video_post_task_start post_id=%s", post_id)
+    run_video_generation_pipeline(post_id=post_id, chat_id=chat_id)
+
+
+@celery_app.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 2})
+def extend_video_task(self, post_id: int, chat_id: int, video_variation: int = 1) -> None:
+    logger.info("extend_video_task_start post_id=%s variation=%s", post_id, video_variation)
+    run_video_extension(post_id=post_id, chat_id=chat_id, video_variation=video_variation)
+
+
+@celery_app.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 2})
+def reel_this_task(self, post_id: int, chat_id: int) -> None:
+    logger.info("reel_this_task_start post_id=%s", post_id)
+    run_reel_this_conversion(post_id=post_id, chat_id=chat_id)

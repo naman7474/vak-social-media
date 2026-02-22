@@ -15,6 +15,7 @@ class ParsedMessage:
     source_url: Optional[str]
     product_code: Optional[str]
     free_text: Optional[str]
+    media_override: Optional[str] = None  # "reel" | "image" | None
 
 
 SUPPORTED_HOSTS = {"instagram.com", "www.instagram.com", "pinterest.com", "www.pinterest.com", "pin.it"}
@@ -49,14 +50,28 @@ def parse_message_text(text: str | None) -> ParsedMessage:
     lower = text.lower()
     if lower.startswith("/"):
         command = lower.split()[0]
+        if command == "/reel":
+            return ParsedMessage(
+                command=command,
+                source_url=extract_first_url(text),
+                product_code=extract_product_code(text),
+                free_text=text,
+                media_override="reel",
+            )
         return ParsedMessage(command=command, source_url=None, product_code=None, free_text=text)
 
-    if lower in {"1", "2", "3", "approve", "redo", "cancel", "edit caption", "post now"} or lower.startswith("schedule"):
+    if lower in {"1", "2", "3", "approve", "redo", "cancel", "edit caption", "post now", "reel this", "extend"}\
+            or lower.startswith("schedule") or lower.startswith("extend ") or lower.startswith("redo "):
         return ParsedMessage(command=lower, source_url=None, product_code=None, free_text=text)
+
+    # Detect media override keywords
+    from vak_bot.pipeline.route_detector import detect_user_override
+    media_override = detect_user_override(text)
 
     return ParsedMessage(
         command=None,
         source_url=extract_first_url(text),
         product_code=extract_product_code(text),
         free_text=text,
+        media_override=media_override,
     )

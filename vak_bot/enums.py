@@ -14,6 +14,14 @@ class PostStatus(str, Enum):
 class MediaType(str, Enum):
     SINGLE = "single"
     CAROUSEL = "carousel"
+    REEL = "reel"
+
+
+class VideoType(str, Enum):
+    FABRIC_FLOW = "fabric-flow"
+    CLOSE_UP = "close-up"
+    LIFESTYLE = "lifestyle"
+    REVEAL = "reveal"
 
 
 class SessionState(str, Enum):
@@ -23,6 +31,7 @@ class SessionState(str, Enum):
     AWAITING_CAPTION_EDIT = "awaiting_caption_edit"
     AWAITING_APPROVAL = "awaiting_approval"
     AWAITING_POST_CONFIRMATION = "awaiting_post_confirmation"
+    AWAITING_VIDEO_SELECTION = "awaiting_video_selection"
 
 
 class JobStage(str, Enum):
@@ -31,6 +40,8 @@ class JobStage(str, Enum):
     ANALYZE = "analyze"
     STYLE = "style"
     VALIDATE = "validate"
+    VIDEO_GENERATE = "video_generate"
+    VIDEO_EXTEND = "video_extend"
     CAPTION = "caption"
     REVIEW = "review"
     POST = "post"
@@ -50,3 +61,6 @@ class CallbackAction(str, Enum):
     REDO = "redo"
     CANCEL = "cancel"
     EDIT_CAPTION = "edit_caption"
+    SELECT_VIDEO = "select_video"
+    EXTEND = "extend"
+    REEL_THIS = "reel_this"

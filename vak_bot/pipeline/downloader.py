@@ -7,7 +7,7 @@ import httpx
 import structlog
 
 from vak_bot.config import get_settings
-from vak_bot.pipeline.errors import DownloadError, PrivatePostError, UnsupportedMediaError
+from vak_bot.pipeline.errors import DownloadError, PrivatePostError
 from vak_bot.pipeline.interfaces import DownloadedReference
 
 logger = structlog.get_logger(__name__)
@@ -86,8 +86,14 @@ class DataBrightDownloader:
 
         # Determine content type
         content_type = (post_data.get("content_type") or "").lower()
-        if content_type in {"reel", "video", "igtv"}:
-            raise UnsupportedMediaError()
+        is_video = content_type in {"reel", "video", "igtv"}
+
+        # Extract video URL if it's a Reel/video
+        video_url: str | None = None
+        thumbnail_url: str | None = None
+        if is_video:
+            video_url = post_data.get("video_url") or post_data.get("video")
+            thumbnail_url = post_data.get("thumbnail") or post_data.get("display_url")
 
         # Extract image URLs from photos or post_content
         image_urls: list[str] = []
@@ -103,7 +109,12 @@ class DataBrightDownloader:
                 if item.get("type", "").lower() == "photo" and item.get("url"):
                     image_urls.append(item["url"])
 
+        if not image_urls and thumbnail_url:
+            image_urls = [thumbnail_url]
+
         if not image_urls:
+            if is_video:
+                raise DownloadError("No thumbnail found for Reel/video post")
             raise DownloadError("No images found in post")
 
         # Extract caption and hashtags
@@ -111,11 +122,20 @@ class DataBrightDownloader:
         hashtags_list = post_data.get("hashtags") or []
         hashtags = " ".join(hashtags_list) if hashtags_list else None
 
+        # Determine final media type
+        if is_video:
+            final_media_type = "reel"
+        elif content_type == "carousel":
+            final_media_type = "carousel"
+        else:
+            final_media_type = "image"
+
         logger.info(
             "bright_data_download_success",
             source_url=source_url,
             image_count=len(image_urls),
             content_type=content_type,
+            is_video=is_video,
         )
 
         return DownloadedReference(
@@ -123,5 +143,7 @@ class DataBrightDownloader:
             image_urls=image_urls,
             caption=caption,
             hashtags=hashtags,
-            media_type="image" if content_type != "carousel" else "carousel",
+            media_type=final_media_type,
+            video_url=video_url,
+            thumbnail_url=thumbnail_url,
         )
