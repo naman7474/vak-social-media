@@ -97,7 +97,6 @@ class MetaGraphPoster:
                         "media_type": "CAROUSEL",
                         "children": ",".join(children_ids),
                         "caption": caption,
-                        "alt_text": alt_text,
                     },
                 )
                 carousel_resp.raise_for_status()
