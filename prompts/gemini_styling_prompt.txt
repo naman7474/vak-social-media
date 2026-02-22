@@ -1,37 +1,184 @@
-I'm providing two images:
-1. REFERENCE IMAGE (first image): This is a style reference. Match its overall
-   aesthetic, mood, composition, and background style. DO NOT copy its product.
-2. SAREE PHOTO (second image): This is the actual product. This saree MUST appear
-   exactly as it is — do not alter, repaint, reshape, or modify the saree in any way.
-   Preserve every hand-painted detail, brushstroke, color, and texture exactly.
+I am providing two images and detailed styling instructions.
 
-YOUR TASK: Place the saree from the second image into a new styled composition
-that matches the visual aesthetic of the reference image.
+IMAGE 1 (REFERENCE): A style reference image. Match its overall aesthetic, mood,
+composition, lighting, and background style. DO NOT copy the product in this image.
+Only use it as a VISUAL MOOD GUIDE.
 
-STYLE INSTRUCTIONS:
-(These will be filled dynamically from the style brief)
-- Layout: {layout_type}
-- Product placement: {product_placement}
-- Background: {suggested_bg_for_saree}
-- Lighting: {lighting}
-- Color mood: {palette_name}, {temperature} tones
-- Dominant colors in background: {dominant_colors}
-- Whitespace: {whitespace}
-- Vibe: {vibe_words}
+IMAGE 2 (SAREE — THE ACTUAL PRODUCT): This is a real hand-painted saree that must
+appear in the final image EXACTLY as it is. This is the most important rule.
 
-CRITICAL RULES:
-- The saree fabric, painting, colors, and details must be IDENTICAL to the input photo.
-- Only change what SURROUNDS the saree (background, props, lighting, staging).
-- Keep the image clean and professional — suitable for an Instagram post.
-- Use props that feel authentically Indian: brass items, marigolds, jasmine,
-  traditional accessories, silk fabric accents, diyas, etc.
-- No watermarks, no logos, no artificial-looking elements.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+YOUR TASK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-TEXT OVERLAY (if applicable):
-- Render the provided text ON the image.
-- Font style: use serif or elegant handwritten style.
-- Position: bottom or as specified in the style brief.
-- Use the Vâk brand colors: deep charcoal (#2C2C2C) or warm cream (#F5F0E8)
-  depending on background contrast.
-- Text must be crisp, legible, and elegantly placed.
-- Do not obscure the saree with text.
+Create a styled Instagram product photograph of the saree from IMAGE 2, using
+the visual aesthetic of IMAGE 1 as inspiration for the ENVIRONMENT ONLY.
+
+Think of it this way: you are a product photographer. Someone handed you a
+beautiful hand-painted saree and said "make it look like THIS mood" while
+showing you the reference image. You would change the background, lighting,
+props, and composition — but you would never repaint or alter the saree itself.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRODUCT INTEGRITY — NON-NEGOTIABLE RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This is a hand-painted saree. Every brushstroke, color variation, and texture
+is the actual artisan's work. The customer will receive this EXACT piece.
+Any alteration would be dishonest.
+
+PRESERVE EXACTLY:
+✓ Every painted motif, pattern, and brushstroke
+✓ The exact colors of the saree fabric (do not color-grade the saree itself)
+✓ The texture and weave of the fabric
+✓ The border and pallu designs exactly as they appear
+✓ Any imperfections — they are part of the handmade character
+✓ The sheen or matte quality of the fabric
+
+NEVER ALTER:
+✗ Do not repaint, recolor, or modify any part of the saree
+✗ Do not add patterns, motifs, or embellishments that aren't in the original
+✗ Do not smooth out the fabric texture or remove natural creases
+✗ Do not change the color temperature of the saree (only the environment)
+✗ Do not stretch, warp, or reshape the fabric
+✗ Do not make the saree look like a digital render — it must look real and tactile
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STYLE INSTRUCTIONS (filled dynamically from style brief)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LAYOUT: {layout_type}
+- If "flat-lay-folded": Show saree folded with pallu on top, shot from directly above.
+  The fold should look natural, not machine-pressed. Show some fabric draping softly
+  at the edges.
+- If "draped-flowing": Drape the saree over the frame loosely. Let fabric flow off
+  one or two edges. Show movement and fluidity.
+- If "pallu-hero": Focus on the decorated pallu end. It should fill 50-60% of the
+  frame. Background soft and blurred or minimal.
+- If "cascading": Saree falls from the top of frame, showing length and drape.
+  Like fabric hung from an invisible point above.
+- If "border-detail": Close crop on the border/edge. Macro photography feel.
+  Background soft, saree detail sharp.
+- If "bunched-texture": Saree gathered loosely to show weight and texture. Looks like
+  someone just casually placed it on a surface.
+- If "partial-drape": Saree draped over something — a chair arm, a wooden frame,
+  an architectural element. One part draped, rest flows down.
+
+PRODUCT PLACEMENT: {product_placement}
+WHITESPACE: {whitespace}
+  - If "generous": At least 30-40% of the image should be background/negative space.
+    The saree should breathe. This is a premium brand, not a marketplace listing.
+  - If "moderate": 15-25% negative space. Balanced.
+  - If "minimal": Saree fills most of the frame. Close and intimate.
+
+BACKGROUND: {suggested_bg_for_saree}
+SURFACE TEXTURE: {surface_texture}
+  Use real, tactile textures — nothing that looks digitally generated.
+  Preferred surfaces: raw silk fabric, handmade paper, marble with natural veining,
+  weathered wood, terracotta clay, linen cloth, brass tray.
+
+LIGHTING:
+  Type: {lighting_type}
+  Direction: {lighting_direction}
+  Shadow: {shadow_style}
+  - Lighting should feel natural and warm. Even "studio" lighting should look like
+    beautiful window light, not harsh commercial strobes.
+  - Shadows add depth and drama. Don't flatten them out completely.
+  - Golden-hour lighting should be warm (2500-3500K color temperature feel) but not
+    orange or yellow-tinted on the saree itself.
+
+COLOR MOOD: {palette_name}, {temperature} tones
+  Dominant background colors: {dominant_colors}
+  - The background and environment should use these colors.
+  - The saree's own colors remain UNCHANGED.
+  - Background should COMPLEMENT the saree, not match it exactly.
+    (Example: a warm cream background for a deep blue saree creates contrast.
+    Don't put a blue saree on a blue background.)
+
+VIBE: {vibe_words}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROPS (if applicable)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{props_instructions}
+
+Props must look real and Indian. They are accent pieces, not the focus.
+The saree is ALWAYS the hero.
+
+Rules for props:
+- Maximum 3-4 props. Less is more.
+- Props should never sit ON TOP of the painted area of the saree.
+- Props should be small — they complement, not compete.
+- Place them at the edges or corners, not center.
+- They must look physically real — correct shadows, correct scale.
+
+Good props for a hand-painted saree:
+- Small brass diya or bowl, fresh jasmine buds, marigold petals (loose, not garland),
+  one or two gold bangles, silk thread, kumkum in a tiny bowl,
+  a sprig of green leaf, smooth river stones, raw cotton boll
+
+Never include:
+- Plastic anything, Western candles, wine glasses, roses in cellophane,
+  mass-produced decor, electronics, branded items, fake flowers
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEXT OVERLAY (only if specified)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{text_overlay_instructions}
+
+If text is needed:
+- TEXT CONTENT: "{overlay_text}"
+- FONT STYLE: Elegant serif typeface (like Cormorant Garamond, Playfair Display,
+  or refined hand-lettering). Never bold sans-serif or blocky fonts.
+- FONT SIZE: Subtle and integrated — not screaming. Think editorial magazine,
+  not sale banner.
+- POSITION: {text_position}
+- COLOR: Use Vâk brand colors based on background contrast:
+  • On dark backgrounds → warm cream (#F5F0E8)
+  • On light backgrounds → deep charcoal (#2C2C2C)
+  • On medium backgrounds → warm gold (#C9A96E) can work as accent
+- CRITICAL: Text must NEVER overlap or obscure the painted areas of the saree.
+  Place it on background/negative space only.
+- Text should feel like it was thoughtfully placed by a designer, not stamped on.
+- Use sentence case. Never ALL CAPS.
+- If the text looks crowded or forced, it's better to skip it entirely.
+
+If no text is needed: Do not add any text, watermarks, logos, or labels.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VARIATION NOTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{variation_note}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT THE FINAL IMAGE SHOULD FEEL LIKE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The final image should look like it was shot by a skilled product photographer
+in a thoughtfully styled setting. It should feel:
+
+- Premium but not pretentious
+- Handmade and tactile, not digital or glossy
+- Indian at its core but modern in composition
+- Like something you'd see in a curated design magazine
+- Like you could reach out and feel the fabric
+
+It should NOT look like:
+- A Meesho or Amazon product listing
+- A digitally generated fashion illustration
+- An overly filtered Instagram photo
+- A catalogue shot with flat lighting and no mood
+- Anything with artificial-looking edges or halos around the product
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT SPECIFICATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Aspect ratio: {aspect_ratio} (use 4:5 for Instagram feed unless specified otherwise)
+- Resolution: 2K minimum. Higher is better.
+- Color space: sRGB (standard for web/Instagram)
+- No watermarks, SynthID labels, or metadata text visible in the image
+- The image should be ready to post on Instagram as-is

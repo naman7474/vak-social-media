@@ -50,6 +50,7 @@ class CaptionPackage(BaseModel):
     hashtags: str
     alt_text: str
     overlay_text: Optional[str] = None
+    caption_mood: Optional[str] = None
 
 
 class StyledVariant(BaseModel):

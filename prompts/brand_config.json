@@ -1,19 +1,303 @@
 {
-  "brand_name": "Vâk",
-  "brand_colors": {
-    "charcoal": "#2C2C2C",
-    "cream": "#F5F0E8"
+  "brand": {
+    "name": "Vâk",
+    "pronunciation": "vaahk",
+    "meaning": "Sanskrit for voice",
+    "tagline": "Your clothes speak before you do.",
+    "pillars": [
+      "VOICE",
+      "HAND",
+      "ONE"
+    ],
+    "website": "https://vakstudio.in",
+    "instagram": "@vak_studios"
+  },
+  "colors": {
+    "primary": {
+      "charcoal": "#2C2C2C",
+      "cream": "#F5F0E8"
+    },
+    "secondary": {
+      "warm_gold": "#C9A96E",
+      "deep_maroon": "#6B2D3E",
+      "muted_terracotta": "#B87351",
+      "sage_green": "#7A8B6F",
+      "soft_indigo": "#4A5568"
+    },
+    "accent": {
+      "brass": "#D4A843",
+      "jasmine_white": "#FEFCF3",
+      "marigold": "#E8A317"
+    },
+    "usage_rules": {
+      "text_on_dark_bg": "#F5F0E8",
+      "text_on_light_bg": "#2C2C2C",
+      "never_use": [
+        "neon",
+        "electric blue",
+        "hot pink",
+        "pure white #FFFFFF",
+        "pure black #000000"
+      ]
+    }
+  },
+  "typography": {
+    "heading_feel": "Elegant serif — think Playfair Display or Cormorant Garamond",
+    "body_feel": "Clean sans-serif — think DM Sans or Inter",
+    "overlay_feel": "For image text: serif or refined handwritten, never blocky or all-caps",
+    "devanagari": "Use when appropriate for Hindi taglines — Eczar or Noto Serif Devanagari",
+    "rules": [
+      "Never use Comic Sans, Impact, or overly decorative fonts",
+      "Text overlays should feel hand-placed, not stamped",
+      "Max 6-8 words for image text overlay",
+      "Prefer sentence case over ALL CAPS"
+    ]
+  },
+  "visual_identity": {
+    "grid_aesthetic": "Curated gallery — alternating between product close-ups, styled flat-lays, texture details, and occasional text posts. Never two similar compositions back-to-back.",
+    "dominant_mood": "Warm, tactile, intimate. Like looking at art in a quiet gallery.",
+    "avoid": [
+      "Cluttered compositions with too many props",
+      "Harsh direct flash lighting",
+      "Busy or patterned backgrounds that compete with the saree",
+      "Stock photo aesthetic — everything should feel handmade",
+      "Cool blue-toned filters",
+      "Overly saturated colors that feel digital",
+      "Symmetrical corporate layouts"
+    ],
+    "prefer": [
+      "Generous whitespace — let the saree breathe",
+      "Warm natural or golden-hour lighting",
+      "Textured backgrounds: raw silk, handmade paper, marble, wood, terracotta",
+      "Asymmetric compositions with organic flow",
+      "Showing brushwork detail — zoom in on the hand-painting",
+      "Earth tones in backgrounds that complement (not match) the saree colors"
+    ]
+  },
+  "props_library": {
+    "warm_festive": [
+      "brass diya (unlit, for texture not religion)",
+      "loose marigold petals",
+      "kumkum in a small brass bowl",
+      "gold or antique bangles (2-3 max)",
+      "silk thread spools",
+      "small brass bell",
+      "fresh turmeric root on banana leaf"
+    ],
+    "calm_minimal": [
+      "single jasmine bud or small gajra",
+      "one small brass bowl",
+      "white muslin cloth as base",
+      "fresh green peepal or banana leaf",
+      "smooth river stones (2-3)",
+      "raw cotton boll"
+    ],
+    "rich_luxe": [
+      "antique brass thali",
+      "loose pearl strings",
+      "vintage hand mirror with patina",
+      "small carved sandalwood box",
+      "silk tassels",
+      "old silver payal (anklet)"
+    ],
+    "earthy_grounded": [
+      "terracotta small pot or diya",
+      "jute rope or twine",
+      "dried cotton bolls on stem",
+      "raw wood slice or block",
+      "handmade paper sheets",
+      "coir or jute mat",
+      "dried palm leaf"
+    ],
+    "never_use": [
+      "plastic flowers",
+      "Chinese ceramics or mass-produced decor",
+      "Western candles (use diyas instead)",
+      "wine glasses or champagne flutes",
+      "roses in cellophane",
+      "anything that looks factory-made or imported",
+      "modern electronics",
+      "branded items"
+    ]
+  },
+  "saree_display_styles": {
+    "draped-flowing": "Saree draped loosely over a surface, fabric flowing off the edge of frame",
+    "flat-lay-folded": "Neatly folded, shot from above. Pallu visible as the hero.",
+    "pallu-hero": "Close focus on the pallu (decorated end). Show brushwork detail.",
+    "border-detail": "Tight crop on the painted border or edge. Macro-feel.",
+    "pleated-standing": "Saree pleated like a fan, arranged vertically.",
+    "cascading": "Fabric falling from top of frame, showing full drape and flow.",
+    "bunched-texture": "Loosely bunched to show fabric weight and texture.",
+    "partial-drape": "Draped over a chair, frame, door, or architectural element."
   },
   "variation_modifiers": [
-    "Minimal and elegant with generous whitespace.",
-    "Warm intimate framing with rich textures.",
-    "Bold editorial lighting with strong contrast."
+    "Minimal and gallery-like: generous whitespace, barely any props, saree as the sole focus. Think modern art exhibition.",
+    "Warm and intimate: close-up framing, rich textures visible, golden lighting, 1-2 carefully placed Indian props. Think a quiet afternoon at home.",
+    "Bold and editorial: dramatic side-lighting, strong shadows, high contrast. The saree commands attention. Think magazine cover."
   ],
-  "default_hashtags": [
-    "#vakstudios",
-    "#handpaintedsaree",
-    "#vakclothing",
-    "#oneofone",
-    "#artisanmade"
-  ]
+  "hashtags": {
+    "brand_always": [
+      "#vakstudios",
+      "#handpaintedsaree",
+      "#vakclothing",
+      "#oneofone",
+      "#yourclothesspeakbeforeyoudo"
+    ],
+    "craft": [
+      "#artisanmade",
+      "#handpainted",
+      "#handpaintedfashion",
+      "#craftedwithlove",
+      "#madebyhand",
+      "#artisanindia",
+      "#handloom",
+      "#wearableart",
+      "#slowfashionindia",
+      "#craftheritage"
+    ],
+    "product_saree": [
+      "#silksaree",
+      "#handloomsaree",
+      "#puresilksaree",
+      "#sareelove",
+      "#sareelovers",
+      "#sareestyle",
+      "#indiansaree",
+      "#designersaree",
+      "#sareecollection",
+      "#sixyards"
+    ],
+    "product_other": [
+      "#handpaintedkurta",
+      "#handpainteddupatta",
+      "#indianethnicwear",
+      "#ethnicfashion"
+    ],
+    "discovery": [
+      "#indianfashion",
+      "#indiandesigner",
+      "#indianwear",
+      "#ethnicwear",
+      "#indianartisan",
+      "#indiantextile",
+      "#handmadeindia",
+      "#indiancraft",
+      "#supportindianartisans",
+      "#vocalforlocal"
+    ],
+    "occasion_festive": [
+      "#diwalifashion",
+      "#festivewear",
+      "#festiveseason",
+      "#indianfestival",
+      "#karwachauth",
+      "#diwalioutfit",
+      "#pujastyle",
+      "#festivesaree"
+    ],
+    "occasion_wedding": [
+      "#weddingguest",
+      "#indianwedding",
+      "#weddingsaree",
+      "#sangeetoutfit",
+      "#mehendilook",
+      "#receptionlook",
+      "#indianbride",
+      "#weddinginspiration"
+    ],
+    "occasion_everyday": [
+      "#sareeeveryday",
+      "#casualsaree",
+      "#officesaree",
+      "#weekendsaree",
+      "#sareeatwork",
+      "#effortlessstyle"
+    ],
+    "niche": [
+      "#paintedsilk",
+      "#textileart",
+      "#handpaintedsilk",
+      "#artisantextile",
+      "#fabricart",
+      "#handcraftedsaree",
+      "#uniquesaree",
+      "#statementwear"
+    ],
+    "never_use": [
+      "#fashion",
+      "#style",
+      "#beautiful",
+      "#love",
+      "#instagood",
+      "#photooftheday",
+      "#trending",
+      "#viral",
+      "#fyp",
+      "#ootd"
+    ]
+  },
+  "occasions_by_mood": {
+    "calm": [
+      "Morning puja",
+      "Small family gathering",
+      "Temple visit + lunch after",
+      "Office ethnic day",
+      "Sunday brunch with friends",
+      "Just felt like wearing a saree"
+    ],
+    "bright": [
+      "Haldi ceremony",
+      "Sangeet night",
+      "Diwali party",
+      "Karva Chauth",
+      "Baby shower",
+      "Navratri celebrations",
+      "Lohri or Makar Sankranti"
+    ],
+    "strong": [
+      "Wedding reception",
+      "Cocktail night",
+      "New Year's Eve",
+      "Big anniversary dinner",
+      "Award ceremony or gala",
+      "When you want all eyes on you"
+    ],
+    "soft": [
+      "Brunch at a destination wedding",
+      "Art gallery opening",
+      "Book launch",
+      "Sunday family lunch",
+      "Casual festive get-together",
+      "Coffee date in a saree"
+    ]
+  },
+  "cta_rotation": [
+    "This one's on the site — link in bio.",
+    "DM us if this one caught your eye.",
+    "Only one like this. Link in bio before it's gone.",
+    "Tap the link in bio to see it up close.",
+    "Want to know the story behind this one? DM us.",
+    "This piece is available — link in bio."
+  ],
+  "caption_rules": {
+    "optimal_length": "150-250 characters for the main caption body (before hashtags)",
+    "max_length": "2200 characters including hashtags",
+    "emoji_limit": "0-2 emojis, only at the end, only if natural",
+    "line_breaks": "Use a period-on-empty-line trick for visual line breaks on Instagram",
+    "must_mention_one_of": [
+      "hand-painted",
+      "artisan",
+      "one of one",
+      "painted by hand",
+      "days not minutes"
+    ]
+  },
+  "content_mix_weekly": {
+    "product_hero": 2,
+    "detail_close_up": 1,
+    "behind_the_scenes_artisan": 1,
+    "styled_lifestyle": 1,
+    "text_or_quote_post": 0.5,
+    "carousel": 0.5
+  }
 }

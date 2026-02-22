@@ -59,6 +59,10 @@ class ClaudeCaptionWriter:
                     "type": ["string", "null"],
                     "description": "Optional overlay text, max 6 words, or null",
                 },
+                "caption_mood": {
+                    "type": ["string", "null"],
+                    "description": "One word describing the caption's emotional tone (e.g., warm, bold, serene)",
+                },
             },
             "required": ["caption", "hashtags", "alt_text"],
             "additionalProperties": False,

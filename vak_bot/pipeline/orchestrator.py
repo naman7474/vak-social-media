@@ -208,10 +208,20 @@ def run_generation_pipeline(post_id: int, chat_id: int) -> None:
                     .limit(3)
                     .all()
                 )
+                # Send all generated images (all carousel items) for review
+                all_image_urls: list[str] = []
+                for variant in all_variants:
+                    items = (
+                        session.query(PostVariantItem)
+                        .filter(PostVariantItem.variant_id == variant.id)
+                        .order_by(PostVariantItem.position.asc())
+                        .all()
+                    )
+                    all_image_urls.extend(item.image_url for item in items)
                 send_review_package(
                     chat_id=chat_id,
                     post_id=post.id,
-                    image_urls=[variant.preview_url for variant in all_variants],
+                    image_urls=all_image_urls,
                     caption=post.caption or "",
                     hashtags=post.hashtags or "",
                 )

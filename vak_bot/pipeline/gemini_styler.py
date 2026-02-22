@@ -339,18 +339,74 @@ class GeminiStyler:
 
     def _build_prompt(self, style_brief: StyleBrief, overlay_text: str | None, modifier: str) -> str:
         base = load_styling_prompt()
-        return (
-            f"{base}\n\n"
-            f"Layout: {style_brief.layout_type}\n"
-            f"Placement: {style_brief.composition.product_placement}\n"
-            f"Background: {style_brief.background.suggested_bg_for_saree}\n"
-            f"Lighting: {style_brief.lighting}\n"
-            f"Palette: {style_brief.color_mood.palette_name} ({style_brief.color_mood.temperature})\n"
-            f"Dominant colors: {', '.join(style_brief.color_mood.dominant_colors)}\n"
-            f"Vibe: {', '.join(style_brief.vibe_words)}\n"
-            f"Variation modifier: {modifier}\n"
-            + (f"Overlay text: {overlay_text}\n" if overlay_text else "")
-        )
+        config = load_brand_config()
+
+        # Build props instructions from brand config based on vibe
+        vibe_lower = " ".join(style_brief.vibe_words).lower()
+        props_lib = config.get("props_library", {})
+        if any(w in vibe_lower for w in ["warm", "festive", "rich", "celebration"]):
+            props_key = "warm_festive"
+        elif any(w in vibe_lower for w in ["bold", "luxe", "dramatic", "opulent"]):
+            props_key = "rich_luxe"
+        elif any(w in vibe_lower for w in ["earthy", "grounded", "rustic", "organic"]):
+            props_key = "earthy_grounded"
+        else:
+            props_key = "calm_minimal"
+        suggested_props = props_lib.get(props_key, [])
+        props_instructions = f"Suggested props ({props_key}): {', '.join(suggested_props[:4])}" if suggested_props else "No specific props needed."
+
+        # Text overlay instructions
+        if overlay_text and style_brief.text_overlay.has_text:
+            text_overlay_instructions = "Text overlay IS needed for this image."
+        else:
+            text_overlay_instructions = "No text overlay needed. Do not add any text to the image."
+
+        # Build template variables
+        template_vars = {
+            "layout_type": style_brief.layout_type,
+            "product_placement": style_brief.composition.product_placement,
+            "whitespace": style_brief.composition.whitespace,
+            "suggested_bg_for_saree": style_brief.background.suggested_bg_for_saree,
+            "surface_texture": style_brief.background.description,
+            "lighting_type": style_brief.lighting,
+            "lighting_direction": "side" if "harsh" in style_brief.lighting else "soft diffused",
+            "shadow_style": "strong defined shadows" if "harsh" in style_brief.lighting or "moody" in style_brief.lighting else "soft natural shadows",
+            "palette_name": style_brief.color_mood.palette_name,
+            "temperature": style_brief.color_mood.temperature,
+            "dominant_colors": ", ".join(style_brief.color_mood.dominant_colors),
+            "vibe_words": ", ".join(style_brief.vibe_words),
+            "props_instructions": props_instructions,
+            "text_overlay_instructions": text_overlay_instructions,
+            "overlay_text": overlay_text or "",
+            "text_position": style_brief.text_overlay.text_position if style_brief.text_overlay.has_text else "none",
+            "variation_note": modifier,
+            "aspect_ratio": style_brief.composition.aspect_ratio,
+        }
+
+        # Use format_map with a defaultdict so missing keys don't crash
+        from collections import defaultdict
+
+        class SafeDict(defaultdict):
+            def __missing__(self, key: str) -> str:
+                return f"{{{key}}}"
+
+        safe = SafeDict(str, template_vars)
+        try:
+            return base.format_map(safe)
+        except Exception:
+            # Fallback: append values if template formatting fails
+            return (
+                f"{base}\n\n"
+                f"Layout: {style_brief.layout_type}\n"
+                f"Placement: {style_brief.composition.product_placement}\n"
+                f"Background: {style_brief.background.suggested_bg_for_saree}\n"
+                f"Lighting: {style_brief.lighting}\n"
+                f"Palette: {style_brief.color_mood.palette_name} ({style_brief.color_mood.temperature})\n"
+                f"Dominant colors: {', '.join(style_brief.color_mood.dominant_colors)}\n"
+                f"Vibe: {', '.join(style_brief.vibe_words)}\n"
+                f"Variation modifier: {modifier}\n"
+                + (f"Overlay text: {overlay_text}\n" if overlay_text else "")
+            )
 
     def generate_variants(
         self,
