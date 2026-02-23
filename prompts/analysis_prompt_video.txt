@@ -25,3 +25,10 @@ IMPORTANT for video analysis:
   complement the mood.
 - Always suggest SLOW or MEDIUM pacing for luxury handmade products.
   Fast pacing feels cheap — Vâk is the opposite.
+
+CRITICAL - NEVER MENTION NAMES:
+- DO NOT mention any celebrity names, actor names, model names, or designer names
+- DO NOT reference specific people (e.g., "Deepika style", "Sabyasachi aesthetic")
+- Describe styles generically: "elegant pose", "editorial fashion", "luxury aesthetic"
+- If the reference has a celebrity, describe the STYLE, not the person
+- This is critical because video generation will fail if names are included

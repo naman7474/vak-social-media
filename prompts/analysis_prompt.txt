@@ -262,3 +262,10 @@ EDGE CASES:
 - If the reference is already a saree brand post: Note what works and what
   Vâk should do differently to stay distinct. Don't copy competitor aesthetics
   exactly — adapt and elevate.
+
+- CRITICAL - NEVER MENTION NAMES: Do not include celebrity names, actor names,
+  model names, influencer names, or designer brand names in your analysis.
+  Describe styles generically ("elegant editorial pose", "luxury fashion aesthetic")
+  rather than referencing specific people ("Deepika style", "Sabyasachi look").
+  This is important because the output is used by AI image/video generators
+  that will reject prompts containing celebrity references.
