@@ -109,3 +109,41 @@ class TestVariationResilience:
         monkeypatch.setattr(gen, "generate_reel_from_styled_image", _fake_generate)
         results = gen.generate_reel_variations("/tmp/start.jpg", brief)
         assert results == ["/tmp/ok.mp4"]
+
+    def test_generate_reel_variations_raises_when_all_fail(self, monkeypatch) -> None:
+        gen = VeoGenerator()
+        brief = _make_style_brief()
+
+        def _always_fail(*args, **kwargs):
+            raise VeoGenerationError("simulated veo failure")
+
+        monkeypatch.setattr(gen, "generate_reel_from_styled_image", _always_fail)
+
+        try:
+            gen.generate_reel_variations("/tmp/start.jpg", brief)
+            assert False, "Expected VeoGenerationError"
+        except VeoGenerationError as exc:
+            assert "No video variation was successfully generated" in str(exc)
+            assert "simulated veo failure" in str(exc)
+
+
+class TestOperationExtraction:
+    def test_extract_generated_video_surfaces_rai_filter_details(self) -> None:
+        gen = VeoGenerator()
+
+        class _Response:
+            generated_videos = []
+            rai_media_filtered_count = 1
+            rai_media_filtered_reasons = ["SAFETY"]
+
+        class _Operation:
+            error = None
+            response = _Response()
+            result = None
+
+        try:
+            gen._extract_generated_video(_Operation())
+            assert False, "Expected VeoGenerationError"
+        except VeoGenerationError as exc:
+            assert "rai_filtered_count=1" in str(exc)
+            assert "SAFETY" in str(exc)

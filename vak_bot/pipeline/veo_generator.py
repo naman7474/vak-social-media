@@ -126,23 +126,40 @@ CRITICAL RULES:
     # ── Image-to-Video Generation ──────────────────────────────────────────
 
     def _extract_generated_video(self, operation) -> object:
-        """Extract the first generated video from an operation or raise a typed error."""
+        """Extract downloadable video content from an operation or raise a typed error."""
         op_error = getattr(operation, "error", None)
-        response = getattr(operation, "response", None)
+        response = getattr(operation, "response", None) or getattr(operation, "result", None)
         if response is None:
             raise VeoGenerationError(f"Veo returned no response (error={op_error})")
 
         generated_videos = getattr(response, "generated_videos", None)
         if generated_videos is None and isinstance(response, dict):
-            generated_videos = response.get("generated_videos")
+            generated_videos = response.get("generated_videos") or response.get("generatedSamples") or response.get("videos")
 
         if not generated_videos:
-            raise VeoGenerationError(f"Veo returned no generated videos (error={op_error})")
+            rai_filtered_count = getattr(response, "rai_media_filtered_count", None)
+            rai_filtered_reasons = getattr(response, "rai_media_filtered_reasons", None)
+            if isinstance(response, dict):
+                if rai_filtered_count is None:
+                    rai_filtered_count = response.get("rai_media_filtered_count") or response.get("raiMediaFilteredCount")
+                if rai_filtered_reasons is None:
+                    rai_filtered_reasons = response.get("rai_media_filtered_reasons") or response.get("raiMediaFilteredReasons")
+
+            details = [f"error={op_error}"]
+            if rai_filtered_count:
+                details.append(f"rai_filtered_count={rai_filtered_count}")
+            if rai_filtered_reasons:
+                details.append(f"rai_filtered_reasons={rai_filtered_reasons}")
+
+            raise VeoGenerationError(f"Veo returned no generated videos ({', '.join(details)})")
 
         generated_video = generated_videos[0]
-        if not getattr(generated_video, "video", None):
+        video = getattr(generated_video, "video", None)
+        if video is None and isinstance(generated_video, dict):
+            video = generated_video.get("video")
+        if not video:
             raise VeoGenerationError("Veo response did not include downloadable video content")
-        return generated_video
+        return video
 
     def generate_reel_from_styled_image(
         self,
@@ -207,10 +224,10 @@ CRITICAL RULES:
             raise VeoGenerationError(f"Veo generation failed: {operation.error}")
 
         generated_video = self._extract_generated_video(operation)
-        self._client.files.download(file=generated_video.video)
+        self._client.files.download(file=generated_video)
 
         output_path = f"/tmp/veo_output_{uuid.uuid4().hex[:8]}.mp4"
-        generated_video.video.save(output_path)
+        generated_video.save(output_path)
 
         logger.info("veo_generation_complete", output=output_path, elapsed_seconds=elapsed)
         return output_path
@@ -253,10 +270,10 @@ CRITICAL RULES:
             raise VeoGenerationError(f"Veo extension failed: {operation.error}")
 
         generated_video = self._extract_generated_video(operation)
-        self._client.files.download(file=generated_video.video)
+        self._client.files.download(file=generated_video)
 
         output_path = f"/tmp/veo_extended_{uuid.uuid4().hex[:8]}.mp4"
-        generated_video.video.save(output_path)
+        generated_video.save(output_path)
 
         logger.info("veo_extension_complete", output=output_path, elapsed_seconds=elapsed)
         return output_path
@@ -274,6 +291,7 @@ CRITICAL RULES:
 
         base_prompt = self.build_video_prompt(style_brief, video_type)
         variations: list[str] = []
+        failures: list[str] = []
 
         for modifier in VIDEO_VARIATION_MODIFIERS:
             full_prompt = f"{base_prompt}\n\nMOTION STYLE: {modifier}"
@@ -287,7 +305,14 @@ CRITICAL RULES:
                 if result:
                     variations.append(result)
             except (VeoGenerationError, VeoTimeoutError) as exc:
+                failures.append(f"[{modifier}] {exc}")
                 logger.warning("veo_variation_failed", error=str(exc), modifier=modifier)
                 continue
+
+        if not variations and failures:
+            raise VeoGenerationError(
+                "No video variation was successfully generated. "
+                f"Failure details: {' | '.join(failures)}"
+            )
 
         return variations
