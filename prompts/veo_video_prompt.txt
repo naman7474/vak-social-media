@@ -1,39 +1,192 @@
-# Veo Video Prompt Templates for Vâk Sarees
+# Veo Video Generation Prompt for Vak Sarees
 
-## Video Type Presets
+You are generating a short-form video (Instagram Reel) from a styled product photograph
+of a hand-painted saree. The starting frame is a carefully styled image that has already
+been approved. Your job is to bring it to life with subtle, elegant motion.
 
-### fabric-flow
-Gentle breeze causes the sheer saree fabric to flow and billow softly.
-The pallu lifts and catches light, revealing the translucency and
-hand-painted details. Camera slowly pans across the fabric.
-Soft ambient sound of fabric rustling.
+IMAGE PROVIDED: A styled photograph of a real hand-painted saree. This is your
+STARTING FRAME. The video must begin exactly with this image and animate from it.
 
-### close-up
-Slow cinematic zoom into the hand-painted details on the saree,
-revealing individual brushstrokes and color variations. Camera pulls
-back slowly to show the full drape. Soft, meditative ambient music.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRODUCT INTEGRITY — NON-NEGOTIABLE RULES (CRITICAL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-### lifestyle
-A graceful woman wearing the saree takes a slow step forward,
-the fabric flowing with her movement. Warm natural lighting.
-Shallow depth of field. Cinematic fashion film aesthetic.
-Soft ambient sounds.
+WARNING: THE SAREE MUST REMAIN EXACTLY AS SHOWN IN THE STARTING FRAME.
+This is a hand-painted saree where every brushstroke is the actual artisan's work.
+The customer will receive this EXACT piece. Any alteration is UNACCEPTABLE.
 
-### reveal
-The saree starts flat on a surface, then is slowly lifted by
-an unseen hand, revealing its full drape and hand-painted motifs.
-Camera tracks the fabric as it unfurls. Studio lighting.
-Satisfying fabric movement sounds.
+PRESERVE EXACTLY THROUGHOUT THE VIDEO (MANDATORY):
+- Every painted motif, pattern, and brushstroke must remain IDENTICAL frame-to-frame
+- The exact colors of the saree fabric must remain unchanged — no color shifting
+- The exact border and pallu designs must stay precisely as shown
+- The original fabric texture, weave, and any natural imperfections
+- The proportions and scale of all design elements
+- The relationship between motifs (if a bird is next to a flower, they stay together)
 
-## Variation Modifiers
+NEVER ALTER DURING ANIMATION (MANDATORY):
+- DO NOT morph, warp, or distort any part of the saree's painted design
+- DO NOT allow colors to shift, blend, or change temperature during motion
+- DO NOT let patterns swim, drift, or reposition on the fabric
+- DO NOT add AI-generated patterns, embellishments, or details that aren't in the start frame
+- DO NOT blur the hand-painted details — they must remain crisp and recognizable
+- DO NOT let the fabric look like digital cloth simulation — it must feel like real silk/organza
+- DO NOT create any frame where the saree looks different from the starting image
 
-### Modifier 1 (Dreamy)
-Use slow, gentle camera movement. Dreamy and meditative pacing.
+QUALITY CHECK: If you extracted the first frame and last frame of your video,
+the saree itself should be visually identical in both. Only the camera angle,
+lighting shadows, and fabric position in space should differ — never the design.
 
-### Modifier 2 (Editorial)
-Use subtle dynamic movement. Slightly more energy, editorial pacing.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VIDEO TYPE: {video_type}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## Critical Rules (Always Included)
+{base_motion_prompt}
+
+MOTION CONSTRAINTS for {video_type}:
+{motion_constraints}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STYLE CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COLOR MOOD: {palette_name}, {temperature} tones
+- The lighting throughout the video should maintain this color mood
+- Color grading should be subtle and consistent — no dramatic shifts
+- The saree's own colors must NOT be affected by the mood grading
+
+BACKGROUND: {suggested_bg_for_saree}
+- Background should complement, not compete with the saree
+- If background has motion (leaves, light flicker), it should be very subtle
+- Background stays secondary — the saree is always the hero
+
+LIGHTING: {lighting_type}
+Direction: {lighting_direction}
+Shadows: {shadow_style}
+- Lighting should feel natural and warm, never harsh or flat
+- As fabric moves, light should play across it realistically
+- Shadows add depth — don't flatten them
+- Golden-hour lighting should be warm but not orange-tint the saree itself
+
+CAMERA MOTION: {camera_motion}
+Camera motion types explained:
+- slow-pan: Horizontal movement, revealing the saree from one end to the other
+- zoom-in: Gradual approach toward a detail area
+- zoom-out: Slow pull-back revealing the full context
+- orbit: Subtle circular movement around the subject (keep minimal, 10-15 degrees max)
+- tilt-up/tilt-down: Vertical pan revealing length of the saree
+- static: No camera movement — only fabric moves
+- tracking: Following motion if lifestyle/model shot
+
+MOTION TYPE: {motion_type}
+What should be moving: {motion_elements}
+
+PACING: {pacing}
+- slow-dreamy: Each second feels luxurious. The viewer has time to appreciate details.
+- medium-editorial: Purposeful but not rushed. Fashion film pacing.
+- fast-energetic: AVOID for Vak. This pacing feels cheap for handmade luxury.
+
+AUDIO MOOD: {audio_mood}
+- ambient-nature: Soft breeze, distant birds, fabric rustle
+- soft-classical: Gentle instrumental, sitar or piano, meditative
+- modern-minimal: Clean, subtle electronic ambience, sophisticated
+- upbeat: AVOID for Vak — doesn't match brand
+- silence: No audio — let the visuals speak
+
+VIBE: {vibe_words}
+
+VIDEO ADAPTATION NOTES: {video_adaptation_notes}
+
+DURATION: {recommended_duration} seconds
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REALISM REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+THE VIDEO MUST LOOK LIKE IT WAS SHOT WITH A REAL CAMERA, not generated by AI.
+This is critical for a luxury brand selling real, handmade products.
+
+Physical realism:
+- Fabric should have weight and behave like real silk/organza/cotton
+- Gravity should affect the fabric naturally
+- Light should interact with fabric realistically (sheen, translucency, shadow)
+- Any props should cast appropriate shadows and have physical presence
+- No floating, glitching, or physically impossible movements
+
+Visual realism:
+- Video should look like it was shot on a high-end cinema camera
+- Natural depth of field — not everything in perfect focus
+- Subtle film grain is acceptable, even desirable for warmth
+- Color should be rich but not oversaturated
+- No visible artifacts, morphing, or AI tells
+
+Motion realism:
+- All movement should be smooth and continuous
+- No sudden jumps, stutters, or frame drops
+- Fabric motion should have natural acceleration and deceleration
+- Camera moves should feel like they're on a gimbal or dolly, not handheld shake
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT THE FINAL VIDEO SHOULD FEEL LIKE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The final video should look like it was shot by a skilled cinematographer in a
+thoughtfully styled setting. It should feel:
+
+- Premium but not pretentious — quiet confidence
+- Handmade and tactile — you can almost feel the fabric through the screen
+- Indian at its core but modern in execution
+- Like something you'd see in a high-end fashion brand campaign
+- Like the product is real and beautiful, not AI-generated
+
+It should NOT look like:
+- A stock video or template animation
+- An AI-generated fashion video with perfect but fake-looking movement
+- A slideshow with Ken Burns effect applied
+- An overly processed Instagram filter look
+- Anything with warping, morphing, or unnatural transitions
+- A video where the saree design looks different from the starting image
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COMMON PROBLEMS TO AVOID
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROBLEM: Painted motifs drift or swim on the fabric during movement
+SOLUTION: Keep painted areas stable. Only edges and loose fabric should move.
+
+PROBLEM: Colors shift or change temperature during the video
+SOLUTION: Lock the saree's color values. Only lighting shadows should change.
+
+PROBLEM: Fabric looks like digital cloth simulation (too perfect, no weight)
+SOLUTION: Add subtle imperfections. Real fabric has weight, creases, and character.
+
+PROBLEM: The video looks AI-generated (uncanny movement, too smooth)
+SOLUTION: Add natural micro-movements, subtle camera imperfections, film-like texture.
+
+PROBLEM: The saree design looks different at the end vs the start
+SOLUTION: This is a failure. The design must be pixel-identical throughout.
+
+PROBLEM: Background or props move unnaturally or distract
+SOLUTION: Keep background movement minimal. The saree is the only hero.
+
+PROBLEM: Motion is too fast or energetic for a luxury handmade product
+SOLUTION: Slow down. Let each frame breathe. This is not fast fashion.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT SPECIFICATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Aspect ratio: 9:16 (portrait for Instagram Reels)
+- Resolution: 1080p minimum (1080 x 1920)
+- Duration: {recommended_duration} seconds
+- Frame rate: 24fps or 30fps (cinematic look)
+- Format: MP4 (H.264 codec)
+- Audio: Native ambient sound matching {audio_mood} mood, soft and non-intrusive
+- No watermarks, logos, text overlays, or visible metadata
+- The video should be ready to post on Instagram as-is
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITICAL RULES SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 - The saree fabric, hand-painted details, and colors must remain EXACTLY as shown
   in the starting image. Do not alter, repaint, or modify the saree.

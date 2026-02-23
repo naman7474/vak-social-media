@@ -55,10 +55,45 @@ VIDEO_TYPE_PROMPTS: dict[str, str] = {
     ),
 }
 
+# Motion constraints per video type — ensures realistic, constrained movement
+VIDEO_TYPE_MOTION_CONSTRAINTS: dict[str, str] = {
+    "fabric-flow": (
+        "- Only the edges and loose fabric should move — the core painted area stays stable\n"
+        "- Movement should be subtle, like a gentle indoor breeze, not outdoor wind\n"
+        "- The pallu can lift 5-10 degrees, no more — we're showing elegance, not a storm\n"
+        "- Fabric should move like real silk: fluid, with weight, not like digital cloth\n"
+        "- Light should play across the fabric naturally as it moves"
+    ),
+    "close-up": (
+        "- Camera movement only — the saree itself remains completely still\n"
+        "- Zoom should be gradual (think 8 seconds to go from wide to detail)\n"
+        "- Focus rack naturally as depth changes\n"
+        "- The painted details should become MORE visible, not blur\n"
+        "- Pull-back should be even slower than the zoom-in"
+    ),
+    "lifestyle": (
+        "- If a model is shown, she moves slowly and deliberately — this is editorial, not runway\n"
+        "- The saree moves as real fabric would: weight in the pleats, flow in the pallu\n"
+        "- Movement should showcase the drape, not obscure the painted details\n"
+        "- Camera can track or follow, but smoothly — no handheld shake\n"
+        "- Background should have subtle depth and blur, keeping focus on the saree"
+    ),
+    "reveal": (
+        "- The lift should feel like real hands lifting real fabric — natural, with weight\n"
+        "- As fabric rises, the painted details should become more visible, not less\n"
+        "- Unfurling should be slow enough to appreciate each design element\n"
+        "- Fabric should not stretch, warp, or behave unnaturally\n"
+        "- Final drape position should show the saree's best features"
+    ),
+}
+
 # Variation modifiers — currently generate a single output variation.
 VIDEO_VARIATION_MODIFIERS: list[str] = [
     "Use slow, gentle camera movement. Dreamy and meditative pacing.",
 ]
+
+# Path to the prompt template file
+PROMPT_TEMPLATE_PATH = Path(__file__).parent.parent.parent / "prompts" / "veo_video_prompt.txt"
 
 
 class VeoGenerator:
@@ -70,6 +105,14 @@ class VeoGenerator:
             self._client = genai.Client(api_key=self.api_key)
 
     # ── Prompt Building ────────────────────────────────────────────────────
+
+    def _load_prompt_template(self) -> str:
+        """Load the Veo prompt template from file."""
+        if PROMPT_TEMPLATE_PATH.exists():
+            return PROMPT_TEMPLATE_PATH.read_text()
+        # Fallback to minimal template if file not found
+        logger.warning("veo_prompt_template_not_found", path=str(PROMPT_TEMPLATE_PATH))
+        return "{base_motion_prompt}\n\nSTYLE: {palette_name}, {temperature}\nCAMERA: {camera_motion}\nPACING: {pacing}"
 
     def build_video_prompt(self, style_brief: StyleBrief, video_type: str | None = None) -> str:
         """Build a Veo prompt from the style brief's video analysis."""
@@ -89,37 +132,84 @@ class VeoGenerator:
                 else:
                     video_type = "fabric-flow"
 
-        base_motion = VIDEO_TYPE_PROMPTS.get(video_type or "fabric-flow", VIDEO_TYPE_PROMPTS["fabric-flow"])
+        video_type = video_type or "fabric-flow"
+        base_motion = VIDEO_TYPE_PROMPTS.get(video_type, VIDEO_TYPE_PROMPTS["fabric-flow"])
+        motion_constraints = VIDEO_TYPE_MOTION_CONSTRAINTS.get(video_type, VIDEO_TYPE_MOTION_CONSTRAINTS["fabric-flow"])
 
-        # Layer in style brief details
+        # Extract all fields from style brief
         brief = style_brief
-        camera_motion = "slow pan"
-        pacing = "slow and dreamy"
-        if brief.video_analysis:
-            camera_motion = brief.video_analysis.camera_motion
-            pacing = brief.video_analysis.pacing
+        video_analysis = brief.video_analysis
 
-        lighting_str = brief.lighting_type if hasattr(brief, "lighting_type") else str(brief.lighting)
+        # Defaults for video analysis fields
+        camera_motion = "slow-pan"
+        pacing = "slow-dreamy"
+        motion_type = "fabric-flow"
+        motion_elements = "gentle fabric movement, light playing across the surface"
+        audio_mood = "ambient-nature"
+        recommended_duration = "8"
+        video_adaptation_notes = "Showcase the hand-painted details with subtle, elegant motion."
 
-        prompt = f"""\
-{base_motion}
+        # Override with actual video analysis if available
+        if video_analysis:
+            camera_motion = video_analysis.camera_motion or camera_motion
+            pacing = video_analysis.pacing or pacing
+            motion_type = video_analysis.motion_type or motion_type
+            motion_elements = video_analysis.motion_elements or motion_elements
+            audio_mood = video_analysis.audio_mood or audio_mood
+            recommended_duration = str(video_analysis.recommended_duration or recommended_duration)
+            video_adaptation_notes = video_analysis.video_adaptation_notes or video_adaptation_notes
 
-STYLE CONTEXT:
-- Color mood: {brief.color_mood.palette_name}, {brief.color_mood.temperature} tones
-- Background: {brief.background.suggested_bg_for_saree}
-- Lighting: {lighting_str}
-- Vibe: {', '.join(brief.vibe_words)}
-- Camera motion: {camera_motion}
-- Pacing: {pacing}
+        # Extract lighting details
+        lighting_type = "natural-soft"
+        lighting_direction = "side-left"
+        shadow_style = "soft-diffused"
+        if hasattr(brief, "lighting") and brief.lighting:
+            if hasattr(brief.lighting, "type"):
+                lighting_type = brief.lighting.type or lighting_type
+            elif isinstance(brief.lighting, dict):
+                lighting_type = brief.lighting.get("type", lighting_type)
+            else:
+                lighting_type = str(brief.lighting)
 
-CRITICAL RULES:
-- The saree fabric, hand-painted details, and colors must remain EXACTLY as shown
-  in the starting image. Do not alter, repaint, or modify the saree.
-- Keep the video clean and elegant — luxury fashion brand aesthetic.
-- No watermarks, no logos, no text overlays.
-- Indian context — any props should feel authentic (brass, flowers, silk).
-- Cinematic quality, editorial fashion film look.
-- Portrait orientation (9:16) for Instagram Reels."""
+            if hasattr(brief.lighting, "direction"):
+                lighting_direction = brief.lighting.direction or lighting_direction
+            elif isinstance(brief.lighting, dict):
+                lighting_direction = brief.lighting.get("direction", lighting_direction)
+
+            if hasattr(brief.lighting, "shadow_style"):
+                shadow_style = brief.lighting.shadow_style or shadow_style
+            elif isinstance(brief.lighting, dict):
+                shadow_style = brief.lighting.get("shadow_style", shadow_style)
+
+        # Build the template variables
+        template_vars = {
+            "video_type": video_type,
+            "base_motion_prompt": base_motion,
+            "motion_constraints": motion_constraints,
+            "palette_name": brief.color_mood.palette_name if brief.color_mood else "warm",
+            "temperature": brief.color_mood.temperature if brief.color_mood else "warm",
+            "suggested_bg_for_saree": brief.background.suggested_bg_for_saree if brief.background else "neutral warm background",
+            "lighting_type": lighting_type,
+            "lighting_direction": lighting_direction,
+            "shadow_style": shadow_style,
+            "camera_motion": camera_motion,
+            "motion_type": motion_type,
+            "motion_elements": motion_elements,
+            "pacing": pacing,
+            "audio_mood": audio_mood,
+            "vibe_words": ", ".join(brief.vibe_words) if brief.vibe_words else "elegant, luxurious, handcrafted",
+            "video_adaptation_notes": video_adaptation_notes,
+            "recommended_duration": recommended_duration,
+        }
+
+        # Load and fill template
+        template = self._load_prompt_template()
+        try:
+            prompt = template.format(**template_vars)
+        except KeyError as e:
+            logger.warning("veo_prompt_template_missing_key", key=str(e))
+            # Fall back to simple prompt on template error
+            prompt = f"{base_motion}\n\nCamera: {camera_motion}\nPacing: {pacing}\nMood: {template_vars['palette_name']}"
 
         return prompt.strip()
 
