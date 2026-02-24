@@ -21,6 +21,23 @@ class ColorMood(BaseModel):
     accent_color: Optional[str] = None
     palette_name: str = "earthy"
 
+    @field_validator("temperature", mode="before")
+    @classmethod
+    def normalize_temperature(cls, v: str) -> str:
+        """Normalize LLM temperature responses to allowed values."""
+        if not isinstance(v, str):
+            return v
+        v_lower = v.lower().strip()
+        # Map common LLM variations to allowed values
+        if v_lower in ("warm", "cool", "neutral"):
+            return v_lower
+        if "warm" in v_lower and "cool" not in v_lower:
+            return "warm"
+        if "cool" in v_lower and "warm" not in v_lower:
+            return "cool"
+        # Mixed or unknown → neutral
+        return "neutral"
+
 
 class BackgroundSpec(BaseModel):
     type: str = "textured"
