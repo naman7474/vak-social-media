@@ -121,10 +121,9 @@ class GeminiStyler:
                 logger.warning("gemini_sdk_init_failed", error=str(exc))
 
     def _model_candidates(self) -> list[str]:
+        # No fallback - use only the configured model (gemini-3-pro-image-preview)
         if self._runtime_model:
             return [self._runtime_model]
-        if self.image_model == "gemini-3-pro-image-preview":
-            return [self.image_model, "gemini-2.5-flash-image"]
         return [self.image_model]
 
     def _part_style_candidates(self) -> list[str]:
@@ -169,6 +168,7 @@ class GeminiStyler:
     def _extract_image_bytes_from_sdk_response(self, response: Any) -> bytes:
         # SDK may expose parts directly or via candidates.
         parts = getattr(response, "parts", None)
+        logger.info("gemini_extract_debug", has_parts=bool(parts), parts_type=str(type(parts)))
         if isinstance(parts, list):
             for part in parts:
                 inline = getattr(part, "inline_data", None)
@@ -179,20 +179,24 @@ class GeminiStyler:
                     return base64.b64decode(data)
 
         candidates = getattr(response, "candidates", None)
-        if isinstance(candidates, list):
+        logger.info("gemini_extract_debug", has_candidates=bool(candidates), candidates_type=str(type(candidates)))
+        if isinstance(candidates, list) and candidates:
             for candidate in candidates:
                 content = getattr(candidate, "content", None)
-                parts = getattr(content, "parts", None) if content is not None else None
-                if not isinstance(parts, list):
+                cand_parts = getattr(content, "parts", None) if content is not None else None
+                logger.info("gemini_extract_debug", cand_parts_type=str(type(cand_parts)))
+                if not isinstance(cand_parts, list):
                     continue
-                for part in parts:
+                for part in cand_parts:
                     inline = getattr(part, "inline_data", None)
+                    logger.info("gemini_extract_debug", part_has_inline=bool(inline))
                     data = getattr(inline, "data", None) if inline is not None else None
+                    logger.info("gemini_extract_debug", data_type=str(type(data)))
                     if isinstance(data, (bytes, bytearray)) and data:
                         return bytes(data)
                     if isinstance(data, str) and data:
                         return base64.b64decode(data)
-        raise StylingError("Gemini SDK did not return image bytes")
+        raise StylingError(f"Gemini SDK did not return image bytes. Response: {str(response)[:500]}")
 
     def _request_generation_sdk(
         self,
@@ -508,34 +512,20 @@ class GeminiStyler:
                     variant=idx,
                     position=position,
                     total_positions=len(reference_image_urls),
-                    candidate_models=self._model_candidates(),
-                    candidate_part_styles=part_style_candidates,
+                    model=self.image_model,
                     ref_mime=ref_mime,
                     saree_mime=saree_mime,
-                    using_sdk=self._sdk_client is not None,
                 )
 
-                sdk_image_bytes = self._request_generation_sdk(
-                    prompt=prompt,
-                    ref_bytes=base64.b64decode(ref_b64),
-                    ref_mime=ref_mime,
-                    saree_bytes=base64.b64decode(saree_b64),
-                    saree_mime=saree_mime,
+                # Use REST API directly (simpler and more reliable than SDK)
+                data = self._request_generation(
+                    parts_by_style=parts_by_style,
                     style_brief=style_brief,
+                    headers=headers,
                     variant=idx,
                     position=position,
                 )
-                if sdk_image_bytes is not None:
-                    image_bytes = sdk_image_bytes
-                else:
-                    data = self._request_generation(
-                        parts_by_style=parts_by_style,
-                        style_brief=style_brief,
-                        headers=headers,
-                        variant=idx,
-                        position=position,
-                    )
-                    image_bytes = self._extract_image_bytes(data)
+                image_bytes = self._extract_image_bytes(data)
                 key = f"styled/post-{uuid.uuid4().hex}/variant-{idx}/item-{position}.jpg"
                 item_url = self.storage.upload_bytes(key, image_bytes)
                 item_urls.append(item_url)
