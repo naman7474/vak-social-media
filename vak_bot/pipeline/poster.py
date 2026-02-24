@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import httpx
 import structlog
 
@@ -7,6 +9,10 @@ from vak_bot.config import get_settings
 from vak_bot.pipeline.errors import PublishError
 
 logger = structlog.get_logger(__name__)
+
+# Container status polling settings
+CONTAINER_POLL_INTERVAL = 2  # seconds between polls
+CONTAINER_MAX_POLLS = 30  # max attempts (60 seconds total)
 
 
 class MetaGraphPoster:
@@ -19,6 +25,48 @@ class MetaGraphPoster:
 
     def _params(self) -> dict:
         return {"access_token": self.settings.meta_page_access_token}
+
+    def _wait_for_container_ready(
+        self,
+        client: httpx.Client,
+        container_id: str,
+        description: str = "container",
+    ) -> None:
+        """Poll container status until FINISHED or raise error."""
+        for attempt in range(CONTAINER_MAX_POLLS):
+            status_resp = client.get(
+                f"{self._base}/{container_id}",
+                params={**self._params(), "fields": "status_code,status"},
+            )
+            status_resp.raise_for_status()
+            data = status_resp.json()
+            status_code = data.get("status_code")
+
+            if status_code == "FINISHED":
+                logger.info(
+                    "meta_container_ready",
+                    container_id=container_id,
+                    description=description,
+                    attempts=attempt + 1,
+                )
+                return
+            elif status_code == "ERROR":
+                error_msg = data.get("status", "Unknown error")
+                raise PublishError(f"Container {description} failed: {error_msg}")
+            elif status_code == "EXPIRED":
+                raise PublishError(f"Container {description} expired before publishing")
+
+            logger.debug(
+                "meta_container_polling",
+                container_id=container_id,
+                status_code=status_code,
+                attempt=attempt + 1,
+            )
+            time.sleep(CONTAINER_POLL_INTERVAL)
+
+        raise PublishError(
+            f"Container {description} not ready after {CONTAINER_MAX_POLLS * CONTAINER_POLL_INTERVAL}s"
+        )
 
     def post_single_image(self, image_url: str, caption: str, alt_text: str, idempotency_key: str) -> dict:
         if self.settings.dry_run:
@@ -76,9 +124,10 @@ class MetaGraphPoster:
                 "permalink": f"https://instagram.com/p/{idempotency_key}",
             }
 
+        children_ids: list[str] = []
         try:
-            children_ids: list[str] = []
-            with httpx.Client(timeout=60.0) as client:
+            with httpx.Client(timeout=120.0) as client:
+                # Step 1: Create child containers
                 for idx, image_url in enumerate(image_urls, start=1):
                     logger.info("meta_carousel_child_create", position=idx, total=len(image_urls))
                     media_resp = client.post(
@@ -87,8 +136,15 @@ class MetaGraphPoster:
                         data={"image_url": image_url, "is_carousel_item": "true"},
                     )
                     media_resp.raise_for_status()
-                    children_ids.append(media_resp.json()["id"])
+                    child_id = media_resp.json()["id"]
+                    children_ids.append(child_id)
 
+                # Step 2: Wait for ALL child containers to be ready
+                logger.info("meta_carousel_children_polling", children_count=len(children_ids))
+                for idx, child_id in enumerate(children_ids, start=1):
+                    self._wait_for_container_ready(client, child_id, f"child_{idx}")
+
+                # Step 3: Create carousel container
                 logger.info("meta_carousel_container_create", children_count=len(children_ids))
                 carousel_resp = client.post(
                     f"{self._base}/{self.settings.instagram_business_account_id}/media",
@@ -102,6 +158,12 @@ class MetaGraphPoster:
                 carousel_resp.raise_for_status()
                 container_id = carousel_resp.json()["id"]
 
+                # Step 4: Wait for carousel container to be ready
+                logger.info("meta_carousel_polling", container_id=container_id)
+                self._wait_for_container_ready(client, container_id, "carousel")
+
+                # Step 5: Publish
+                logger.info("meta_carousel_publishing", container_id=container_id)
                 publish_resp = client.post(
                     f"{self._base}/{self.settings.instagram_business_account_id}/media_publish",
                     params=self._params(),
@@ -110,6 +172,7 @@ class MetaGraphPoster:
                 publish_resp.raise_for_status()
                 media_id = publish_resp.json()["id"]
 
+                # Step 6: Get permalink
                 permalink_resp = client.get(
                     f"{self._base}/{media_id}",
                     params={**self._params(), "fields": "permalink"},
