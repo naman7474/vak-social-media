@@ -518,24 +518,64 @@ class GeminiStyler:
                 )
 
                 # Use REST API directly (simpler and more reliable than SDK)
-                data = self._request_generation(
-                    parts_by_style=parts_by_style,
-                    style_brief=style_brief,
-                    headers=headers,
+                try:
+                    data = self._request_generation(
+                        parts_by_style=parts_by_style,
+                        style_brief=style_brief,
+                        headers=headers,
+                        variant=idx,
+                        position=position,
+                    )
+                    image_bytes = self._extract_image_bytes(data)
+
+                    # Skip this position if blocked by content filter
+                    if image_bytes is None:
+                        logger.warning(
+                            "gemini_position_skipped",
+                            variant=idx,
+                            position=position,
+                            reason="content_filter_blocked",
+                        )
+                        continue
+
+                    key = f"styled/post-{uuid.uuid4().hex}/variant-{idx}/item-{position}.jpg"
+                    item_url = self.storage.upload_bytes(key, image_bytes)
+                    item_urls.append(item_url)
+                    logger.info(
+                        "gemini_variant_generated",
+                        variant=idx,
+                        position=position,
+                        model=self._runtime_model,
+                        part_style=self._runtime_part_style,
+                    )
+                except StylingError as exc:
+                    # Log and skip this position, continue with others
+                    logger.warning(
+                        "gemini_position_failed",
+                        variant=idx,
+                        position=position,
+                        error=str(exc),
+                    )
+                    continue
+
+            # Only add variant if at least one position succeeded
+            if not item_urls:
+                logger.error(
+                    "gemini_all_positions_failed",
                     variant=idx,
-                    position=position,
+                    total_positions=len(reference_image_urls),
                 )
-                image_bytes = self._extract_image_bytes(data)
-                key = f"styled/post-{uuid.uuid4().hex}/variant-{idx}/item-{position}.jpg"
-                item_url = self.storage.upload_bytes(key, image_bytes)
-                item_urls.append(item_url)
-                logger.info(
-                    "gemini_variant_generated",
-                    variant=idx,
-                    position=position,
-                    model=self._runtime_model,
-                    part_style=self._runtime_part_style,
+                raise StylingError(
+                    f"All {len(reference_image_urls)} positions were blocked or failed. "
+                    "Try different reference images."
                 )
+
+            logger.info(
+                "gemini_variant_complete",
+                variant=idx,
+                successful_positions=len(item_urls),
+                total_positions=len(reference_image_urls),
+            )
 
             generated.append(
                 StyledVariant(
@@ -548,7 +588,19 @@ class GeminiStyler:
             )
         return generated
 
-    def _extract_image_bytes(self, response_json: dict) -> bytes:
+    def _extract_image_bytes(self, response_json: dict) -> bytes | None:
+        """Extract image bytes from Gemini response. Returns None if blocked by content filter."""
+        # Check if request was blocked by content filter
+        prompt_feedback = response_json.get("promptFeedback", {})
+        block_reason = prompt_feedback.get("blockReason")
+        if block_reason:
+            logger.warning(
+                "gemini_request_blocked",
+                block_reason=block_reason,
+                response_preview=json.dumps(response_json)[:300],
+            )
+            return None  # Signal to skip this position
+
         candidates = response_json.get("candidates", [])
         for candidate in candidates:
             parts = candidate.get("content", {}).get("parts", [])
