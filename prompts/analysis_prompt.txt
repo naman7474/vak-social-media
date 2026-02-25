@@ -27,6 +27,29 @@ Vâk's Instagram grid should feel like: a curated gallery, not a marketplace.
 
 IMPORTANT RULES:
 
+BRAND CONTEXT (use this to make better suggestions):
+This analysis is for Vâk Studios, a luxury hand-painted saree brand.
+Brand color palette for backgrounds/staging:
+- Deep charcoal: #2C2C2C
+- Warm cream: #F5F0E8
+- Warm gold: #C9A96E
+- Deep maroon: #6B2D3E
+- Muted terracotta: #B87351
+- Sage green: #7A8B6F
+- Brass accent: #D4A843
+- Jasmine white: #FEFCF3
+
+When suggesting "suggested_bg_for_saree", use these colors as anchors.
+When suggesting props, always suggest Indian-context items:
+brass diyas, marigold/jasmine flowers, terracotta items, carved wood,
+raw silk fabric, antique jewelry, woven baskets, handmade paper.
+
+NEVER suggest:
+- Western props (wine glasses, modern vases, minimalist objects)
+- Neon or electric colors in backgrounds
+- Industrial or stark white settings
+- Anything that reads as fast-fashion or mass-market
+
 1. The reference post may feature ANY product (jewelry, shoes, clothing, food,
    interiors). Your job is to adapt the STYLE for a hand-painted saree —
    not replicate the product.

@@ -1,3 +1,22 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ABSOLUTE RULE — READ THIS FIRST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You are creating product photography for Vâk Studios, a luxury hand-painted saree brand.
+The saree in IMAGE 2 was painted by hand by an artisan over several days.
+Every brushstroke is deliberate and irreplaceable.
+
+YOUR #1 JOB: The saree from IMAGE 2 must appear PIXEL-IDENTICAL in your output.
+- Same colors, same motifs, same texture, same fabric weave
+- Same zari borders, same pallu design, same painted details
+- If you cannot preserve the saree exactly, produce nothing
+
+You may ONLY change: background, lighting angle, staging, props, composition, shadows.
+You must NEVER change: the saree itself in any way whatsoever.
+
+NEGATIVE PROMPT (things that must NOT appear in the output):
+{negative_prompts}
+
 I am providing two images and detailed styling instructions.
 
 IMAGE 1 (REFERENCE): A style reference image. Match its overall aesthetic, mood,
@@ -125,6 +144,29 @@ Good props for a hand-painted saree:
 Never include:
 - Plastic anything, Western candles, wine glasses, roses in cellophane,
   mass-produced decor, electronics, branded items, fake flowers
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BRAND IDENTITY — Vâk Studios
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This is for Vâk (Sanskrit for "voice"). Tagline: "Your clothes speak before you do."
+Three pillars: VOICE (your clothes say something), HAND (made by hands), ONE (each piece is one of a kind).
+
+The image should feel:
+- Like a curated art gallery, not a retail catalog
+- Warm and tactile — you can almost feel the fabric
+- Indian at its core but modern in composition
+- Premium but not pretentious — quiet confidence
+
+Brand colors for backgrounds/accents (NOT for the saree):
+- Deep charcoal: #2C2C2C
+- Warm cream: #F5F0E8
+- Warm gold: #C9A96E
+- Deep maroon: #6B2D3E
+- Muted terracotta: #B87351
+- Sage green: #7A8B6F
+
+NEVER use: neon, electric blue, hot pink, pure white #FFFFFF, pure black #000000
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 TEXT OVERLAY (only if specified)

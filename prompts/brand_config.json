@@ -299,5 +299,155 @@
     "styled_lifestyle": 1,
     "text_or_quote_post": 0.5,
     "carousel": 0.5
+  },
+  "product_rules": {
+    "sacred_principle": "The hand-painted saree must NEVER be altered by AI. Every brushstroke is the artisan's original work.",
+    "ai_may_change": [
+      "background",
+      "lighting",
+      "staging",
+      "environment",
+      "shadows",
+      "props",
+      "composition"
+    ],
+    "ai_must_never_change": [
+      "saree fabric texture",
+      "painted motifs",
+      "color of saree",
+      "zari/border patterns",
+      "fabric weave",
+      "drape structure"
+    ],
+    "validation_thresholds": {
+      "image_ssim_minimum": 0.85,
+      "image_lpips_maximum": 0.15,
+      "video_first_frame_ssim": 0.80,
+      "video_clip_similarity": 0.85
+    }
+  },
+  "negative_prompts": {
+    "universal": [
+      "blurry, low quality, distorted, watermark, text artifacts, AI artifacts",
+      "oversaturated colors, HDR look, Instagram filter aesthetic",
+      "cartoon, illustration, digital painting, 3D render"
+    ],
+    "product_protection": [
+      "altered fabric pattern, changed motif, modified brushstrokes",
+      "synthetic fabric texture, machine-printed pattern, digital art style",
+      "wrong drape physics, stiff fabric, plastic-looking material"
+    ],
+    "brand_aesthetic": [
+      "neon colors, pop art, minimalist stark white, fast-fashion look",
+      "Western haute couture runway, industrial setting",
+      "discount store aesthetic, marketplace listing look, Meesho/Amazon style"
+    ],
+    "cultural_sensitivity": [
+      "orientalist tropes, exoticized imagery, costume-like presentation",
+      "inauthentic Indian setting, Bollywood kitsch, cheap decoration"
+    ]
+  },
+  "video_presets": {
+    "ad_structures": {
+      "30_second_reel": {
+        "scenes": [
+          {
+            "name": "hook",
+            "duration_sec": 3,
+            "type": "close-up",
+            "purpose": "Stop the scroll — extreme detail of hand-painting"
+          },
+          {
+            "name": "origin",
+            "duration_sec": 7,
+            "type": "lifestyle",
+            "purpose": "Show the artisan's world or the saree in context"
+          },
+          {
+            "name": "reveal",
+            "duration_sec": 10,
+            "type": "reveal",
+            "purpose": "Full product reveal with elegant camera movement"
+          },
+          {
+            "name": "drape",
+            "duration_sec": 7,
+            "type": "fabric-flow",
+            "purpose": "Fabric in motion, showing weight and texture"
+          },
+          {
+            "name": "close",
+            "duration_sec": 3,
+            "type": "close-up",
+            "purpose": "Final detail shot, brand moment"
+          }
+        ],
+        "transition": "dissolve",
+        "transition_duration_sec": 1.5
+      },
+      "15_second_reel": {
+        "scenes": [
+          {
+            "name": "hook",
+            "duration_sec": 3,
+            "type": "close-up",
+            "purpose": "Macro detail of brushwork"
+          },
+          {
+            "name": "reveal",
+            "duration_sec": 7,
+            "type": "fabric-flow",
+            "purpose": "Saree in motion"
+          },
+          {
+            "name": "close",
+            "duration_sec": 5,
+            "type": "reveal",
+            "purpose": "Full product + brand moment"
+          }
+        ],
+        "transition": "dissolve",
+        "transition_duration_sec": 1.0
+      }
+    },
+    "ffmpeg_transitions": {
+      "luxury_dissolve": "xfade=transition=dissolve:duration=1.5",
+      "fade_black": "xfade=transition=fadeblack:duration=1.0",
+      "smooth_left": "xfade=transition=smoothleft:duration=1.0"
+    }
+  },
+  "voice": {
+    "tone": "warm, reverent, personal, unhurried",
+    "personality": [
+      "artisanal",
+      "meditative",
+      "rooted",
+      "refined"
+    ],
+    "sentence_style": "short, sensory, evocative — 12 words or fewer per sentence",
+    "vocabulary_preferred": [
+      "crafted",
+      "painted",
+      "brushstroke",
+      "palette",
+      "atelier",
+      "heirloom",
+      "canvas of silk"
+    ],
+    "vocabulary_forbidden": [
+      "exquisite",
+      "timeless elegance",
+      "must-have",
+      "ethereal",
+      "resplendent",
+      "stunning",
+      "amazing",
+      "shop now",
+      "hurry",
+      "limited time",
+      "best-seller"
+    ],
+    "emoji_policy": "maximum 2-3 per caption, at the end if at all",
+    "cta_style": "invitation not command — 'Discover', 'Explore', 'Experience'"
   }
 }

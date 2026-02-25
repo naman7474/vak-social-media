@@ -37,6 +37,23 @@ the saree itself should be visually identical in both. Only the camera angle,
 lighting shadows, and fabric position in space should differ — never the design.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BRAND: Vâk Studios — Luxury Hand-Painted Sarees
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This video is for a luxury Indian brand where every saree is hand-painted by
+a named artisan over multiple days. The product in the starting image is REAL
+and must be treated as sacred — every brushstroke, every color, every motif
+must remain exactly as shown in frame 1 through the entire video.
+
+THE STARTING IMAGE IS THE GROUND TRUTH. The final frame must match it exactly.
+Only the camera angle, lighting shadows, and fabric position in space should
+differ — never the design.
+
+NEGATIVE PROMPT: blurry, distorted patterns, altered colors, morphing texture,
+incorrect pattern placement, wrong fabric color, missing embroidery, fabric
+distortion, AI-generated look, synthetic texture, plastic fabric.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 VIDEO TYPE: {video_type}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
