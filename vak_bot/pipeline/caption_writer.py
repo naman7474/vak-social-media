@@ -12,7 +12,7 @@ from vak_bot.pipeline.llm_utils import (
     normalize_claude_model,
     parse_json_object,
 )
-from vak_bot.pipeline.prompts import load_caption_prompt
+from vak_bot.pipeline.prompts import load_caption_prompt, load_brand_config
 from vak_bot.schemas import CaptionPackage, ReelCaptionPackage, StyleBrief
 
 logger = structlog.get_logger(__name__)
@@ -91,6 +91,25 @@ class ClaudeCaptionWriter:
             raise CaptionError("Missing ANTHROPIC_API_KEY")
 
         prompt = load_caption_prompt()
+        config = load_brand_config()
+        voice_config = config.get("voice", {})
+        if voice_config:
+            prompt += "\n\nBRAND VOICE GUIDELINES:\n"
+            if "tone" in voice_config:
+                prompt += f"Tone: {', '.join(voice_config['tone'])}\n"
+            if "personality" in voice_config:
+                prompt += f"Personality: {voice_config['personality']}\n"
+            if "sentence_style" in voice_config:
+                prompt += f"Sentence Style: {voice_config['sentence_style']}\n"
+            if "emoji_policy" in voice_config:
+                prompt += f"Emoji Policy: {voice_config['emoji_policy']}\n"
+            if "cta_style" in voice_config:
+                prompt += f"CTA Style: {voice_config['cta_style']}\n"
+            if "vocabulary_preferred" in voice_config:
+                prompt += f"Preferred Vocabulary: {', '.join(voice_config['vocabulary_preferred'])}\n"
+            if "vocabulary_forbidden" in voice_config:
+                prompt += f"FORBIDDEN WORDS (DO NOT USE): {', '.join(voice_config['vocabulary_forbidden'])}\n"
+
         if is_reel:
             prompt += "\n\n" + _REEL_CAPTION_ADDON
         model = normalize_claude_model(self.settings.claude_model)

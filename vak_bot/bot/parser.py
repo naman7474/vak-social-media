@@ -58,6 +58,14 @@ def parse_message_text(text: str | None) -> ParsedMessage:
                 free_text=text,
                 media_override="reel",
             )
+        if command == "/ad":
+            return ParsedMessage(
+                command=command,
+                source_url=extract_first_url(text),
+                product_code=extract_product_code(text),
+                free_text=text,
+                media_override="ad",
+            )
         return ParsedMessage(command=command, source_url=None, product_code=None, free_text=text)
 
     if lower in {"1", "2", "3", "approve", "redo", "cancel", "edit caption", "post now", "reel this", "extend"}\

@@ -88,7 +88,7 @@ def run_generation_pipeline(post_id: int, chat_id: int) -> None:
     analyzer = OpenAIReferenceAnalyzer()
     styler = GeminiStyler()
     captioner = ClaudeCaptionWriter()
-    validator = SareeValidator(threshold=0.6)
+    validator = SareeValidator(threshold=0.75)
     logger.info(
         "generation_models_configured",
         openai_model=normalize_openai_model(analyzer.settings.openai_model),
@@ -156,13 +156,17 @@ def run_generation_pipeline(post_id: int, chat_id: int) -> None:
                 low_ssim_variants: list[int] = []
                 for variant in variants:
                     generated_bytes = _fetch_bytes(variant.preview_url)
-                    is_valid, score = validator.verify_preserved(original_bytes, generated_bytes)
-                    if not is_valid:
+                    is_valid, score, lpips_score = validator.verify_preserved(original_bytes, generated_bytes)
+                    
+                    if not is_valid or (lpips_score is not None and lpips_score > validator.lpips_threshold):
+                        # Treat as warning only per user request
+                        is_valid = True
                         low_ssim_variants.append(variant.variant_index)
                         logger.warning(
-                            "low_ssim_score",
+                            "low_ssim_or_lpips_score",
                             variant=variant.variant_index,
                             ssim_score=round(score, 4),
+                            lpips_score=round(lpips_score, 4) if lpips_score is not None else None,
                             threshold=validator.threshold,
                         )
                     record = PostVariant(
@@ -264,6 +268,7 @@ def run_caption_rewrite(post_id: int, chat_id: int, rewrite_instruction: str) ->
                     styled_image_url=post.styled_image,
                     style_brief=style_brief,
                     product_info=_build_product_info(post),
+                    is_reel=(post.media_type == "reel"),
                 )
                 post.caption = package.caption
                 post.hashtags = package.hashtags
@@ -413,8 +418,8 @@ def run_video_generation_pipeline(post_id: int, chat_id: int) -> None:
     styler = GeminiStyler()
     veo = VeoGenerator()
     captioner = ClaudeCaptionWriter()
-    validator = SareeValidator(threshold=0.6)
-    video_validator = SareeValidator(threshold=0.7)
+    validator = SareeValidator(threshold=0.75)
+    video_validator = SareeValidator(threshold=0.8)
     storage = R2StorageClient()
 
     with SessionLocal() as session:
@@ -476,7 +481,14 @@ def run_video_generation_pipeline(post_id: int, chat_id: int) -> None:
                 if variants:
                     original_bytes = _fetch_bytes(saree_sources[0])
                     generated_bytes = _fetch_bytes(variants[0].preview_url)
-                    is_valid, score = validator.verify_preserved(original_bytes, generated_bytes)
+                    is_valid, score, lpips_score = validator.verify_preserved(original_bytes, generated_bytes)
+                    
+                    if not is_valid or (lpips_score is not None and lpips_score > validator.lpips_threshold):
+                        logger.warning(
+                            "styled_frame_quality_warning",
+                            ssim_score=round(score, 4),
+                            lpips_score=round(lpips_score, 4) if lpips_score is not None else None,
+                        )
 
                     post.styled_image = variants[0].preview_url
                     post.start_frame_url = variants[0].preview_url
@@ -509,13 +521,14 @@ def run_video_generation_pipeline(post_id: int, chat_id: int) -> None:
                     for idx, video_path in enumerate(video_paths, start=1):
                         try:
                             first_frame = extract_first_frame(video_path)
-                            is_valid_video, video_ssim = video_validator.verify_preserved(styled_bytes, first_frame)
-                            if not is_valid_video:
+                            is_valid_video, video_ssim, video_lpips = video_validator.verify_preserved(styled_bytes, first_frame)
+                            if not is_valid_video or (video_lpips is not None and video_lpips > video_validator.lpips_threshold):
                                 logger.warning(
-                                    "video_first_frame_ssim_low",
+                                    "video_first_frame_warning",
                                     post_id=post_id,
                                     variation=idx,
                                     ssim_score=round(video_ssim, 4),
+                                    lpips_score=round(video_lpips, 4) if video_lpips is not None else None,
                                     threshold=video_validator.threshold,
                                 )
                         except Exception as exc:
@@ -649,13 +662,14 @@ def run_reel_this_conversion(post_id: int, chat_id: int) -> None:
                     for idx, video_path in enumerate(video_paths, start=1):
                         try:
                             first_frame = extract_first_frame(video_path)
-                            is_valid_video, video_ssim = video_validator.verify_preserved(styled_bytes, first_frame)
-                            if not is_valid_video:
+                            is_valid_video, video_ssim, video_lpips = video_validator.verify_preserved(styled_bytes, first_frame)
+                            if not is_valid_video or (video_lpips is not None and video_lpips > video_validator.lpips_threshold):
                                 logger.warning(
-                                    "video_first_frame_ssim_low",
+                                    "video_first_frame_warning",
                                     post_id=post_id,
                                     variation=idx,
                                     ssim_score=round(video_ssim, 4),
+                                    lpips_score=round(video_lpips, 4) if video_lpips is not None else None,
                                     threshold=video_validator.threshold,
                                 )
                         except Exception as exc:
@@ -783,4 +797,103 @@ def run_video_extension(post_id: int, chat_id: int, video_variation: int = 1) ->
             send_text(chat_id, exc.user_message)
         except Exception as exc:
             send_text(chat_id, "Video extension failed. You can still post the original clip.")
+
+
+def run_multi_scene_ad_pipeline(post_id: int, chat_id: int, ad_structure: str = "30_second_reel") -> None:
+    """Generate a multi-scene ad (30s or 15s) by creating discrete scenes and stitching."""
+    veo = VeoGenerator()
+    captioner = ClaudeCaptionWriter()
+    video_validator = SareeValidator(threshold=0.75)
+    storage = R2StorageClient()
+
+    with SessionLocal() as session:
+        post = session.get(Post, post_id)
+        if not post or not post.styled_image:
+            send_text(chat_id, "No styled image available for ad creation.")
+            return
+
+        post.status = PostStatus.PROCESSING.value
+        post.media_type = "reel"
+        session.commit()
+
+        try:
+            style_brief = StyleBrief.model_validate(post.style_brief or {})
+            styled_bytes = _fetch_bytes(post.styled_image)
+
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tf:
+                tf.write(styled_bytes)
+                styled_frame_path = tf.name
+
+            # Generate all scenes
+            send_text(chat_id, f"🎬 Generating {ad_structure} ad — this will take 5-10 minutes...")
+            scenes = veo.generate_multi_scene_ad(
+                styled_frame_path=styled_frame_path,
+                style_brief=style_brief,
+                ad_structure=ad_structure,
+            )
+
+            if len(scenes) < 2:
+                send_text(chat_id, "Could only generate 1 scene. Sending as a standard Reel instead.")
+                # Fall back to single clip posting
+                if scenes:
+                    final_path = scenes[0]["path"]
+                else:
+                    return
+            else:
+                # Stitch scenes with FFmpeg
+                from vak_bot.pipeline.video_stitcher import stitch_scenes
+                final_path = stitch_scenes(
+                    scene_paths=[s["path"] for s in scenes],
+                    transition="dissolve",
+                    transition_duration=1.5,
+                )
+
+            # Upload and send for review
+            final_bytes = Path(final_path).read_bytes()
+            key = f"videos/post-{post_id}/ad-{uuid.uuid4().hex[:8]}.mp4"
+            video_url = storage.upload_bytes(key, final_bytes, content_type="video/mp4")
+
+            post.video_url = video_url
+            post.video_duration = sum(s["duration"] for s in scenes) if scenes else 8
+            
+            # Generate caption for ad
+            with stage_run(session, post_id, JobStage.CAPTION):
+                caption_package = captioner.generate_caption(
+                    styled_image_url=post.styled_image,
+                    style_brief=style_brief,
+                    product_info=_build_product_info(post),
+                    is_reel=True,
+                )
+                post.caption = caption_package.caption
+                post.hashtags = caption_package.hashtags
+                post.alt_text = caption_package.alt_text
+                if hasattr(caption_package, "thumb_offset_ms"):
+                    post.thumb_offset_ms = caption_package.thumb_offset_ms
+                post.status = PostStatus.REVIEW_READY.value
+            
+            session.commit()
+
+            send_text(chat_id, f"✅ {len(scenes)}-scene ad generated ({post.video_duration}s total)")
+            
+            send_video_review_package(
+                chat_id=chat_id,
+                post_id=post.id,
+                video_urls=[video_url],
+                start_frame_url=post.start_frame_url or post.styled_image or "",
+                caption=post.caption or "",
+                hashtags=post.hashtags or "",
+            )
+
+        except PipelineError as exc:
+            post.status = PostStatus.FAILED.value
+            post.error_message = str(exc)
+            session.commit()
+            send_text(chat_id, exc.user_message)
+        except Exception as exc:
+            post.status = PostStatus.FAILED.value
+            post.error_message = str(exc)
+            session.commit()
+            send_text(chat_id, f"Ad generation failed: {str(exc)[:200]}")
+            logger.exception("ad_generation_failed", post_id=post_id, error=str(exc))
             logger.exception("video_extension_error", post_id=post_id, error=str(exc))

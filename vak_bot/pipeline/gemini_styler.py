@@ -371,6 +371,16 @@ class GeminiStyler:
         lighting_direction = lighting.direction if hasattr(lighting, "direction") else "ambient"
         shadow_style = lighting.shadow_style if hasattr(lighting, "shadow_style") else "soft-diffused"
 
+        # Build negative prompts from brand config
+        negative_prompts_config = config.get("negative_prompts", {})
+        negative_prompts_list = (
+            negative_prompts_config.get("universal", []) +
+            negative_prompts_config.get("product_protection", []) +
+            negative_prompts_config.get("brand_aesthetic", []) +
+            negative_prompts_config.get("cultural_sensitivity", [])
+        )
+        negative_prompts_str = ", ".join(negative_prompts_list) if negative_prompts_list else "low quality, distorted, mutated"
+
         # Model vs product-only instructions
         if style_brief.reference_has_model:
             model_instructions = (
@@ -409,6 +419,7 @@ class GeminiStyler:
             "text_position": style_brief.text_overlay.text_position if style_brief.text_overlay.has_text else "none",
             "variation_note": modifier,
             "aspect_ratio": style_brief.composition.aspect_ratio,
+            "negative_prompts": negative_prompts_str,
         }
 
         # Use format_map with a defaultdict so missing keys don't crash

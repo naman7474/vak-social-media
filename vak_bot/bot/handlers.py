@@ -41,6 +41,7 @@ from vak_bot.workers.tasks import (
     publish_post_task,
     reel_this_task,
     rewrite_caption_task,
+    generate_ad_task,
 )
 
 logger = structlog.get_logger(__name__)
@@ -160,6 +161,9 @@ async def _process_ingestion(chat_id: int, user_id: int, text: str | None, photo
     if pipeline_type == "reel":
         await respond(REEL_DETECTED_MESSAGE)
         process_video_post_task.delay(post.id, chat_id)
+    elif pipeline_type == "ad":
+        await respond("🎬 Ad template selected. Generating multi-scene ad...")
+        generate_ad_task.delay(post.id, chat_id)
     else:
         process_post_task.delay(post.id, chat_id)
 
@@ -471,8 +475,24 @@ def register_handlers(dispatcher: Dispatcher) -> None:
             "/stats",
             "/reelqueue",
             "/reel",
+            "/ad",
         }:
             await message.answer("Unknown command. Use /help.")
+            return
+
+        if parsed.command == "/ad":
+            if not parsed.source_url:
+                await message.answer("Usage: /ad <instagram_or_pinterest_link> [VAK-XXX]")
+                return
+            photo_file_ids, photo_urls = await _extract_photo_urls(message)
+            await _process_ingestion(
+                chat_id=message.chat.id,
+                user_id=message.from_user.id,
+                text=message.text,
+                photo_urls=photo_urls,
+                photo_file_ids=photo_file_ids,
+                send_via_message=message,
+            )
             return
 
         if parsed.command in {"1", "2", "3", "approve", "redo", "cancel", "edit caption", "post now", "reel this", "extend"} or (

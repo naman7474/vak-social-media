@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     ffmpeg_path: str = Field(default="ffmpeg", alias="FFMPEG_PATH")
     max_reel_duration_seconds: int = Field(default=90, alias="MAX_REEL_DURATION_SECONDS")
     default_reel_duration_seconds: int = Field(default=8, alias="DEFAULT_REEL_DURATION_SECONDS")
+    ad_default_structure: str = Field(default="30_second_reel", alias="AD_DEFAULT_STRUCTURE")
 
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     claude_model: str = Field(default="claude-sonnet-4-6", alias="CLAUDE_MODEL")

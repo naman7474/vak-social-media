@@ -141,3 +141,79 @@ def compress_video(video_path: str, max_size_mb: int = 950) -> str:
         compressed_mb=round(Path(output_path).stat().st_size / (1024 * 1024), 1),
     )
     return output_path
+
+
+def stitch_scenes(
+    scene_paths: list[str],
+    transition: str = "dissolve",
+    transition_duration: float = 1.5,
+    fps: int = 24,
+) -> str:
+    """Stitch multiple video scenes into a single video with transitions.
+
+    Args:
+        scene_paths: List of paths to MP4 files to stitch
+        transition: FFmpeg xfade transition type (dissolve, fadeblack, smoothleft)
+        transition_duration: Duration of each transition in seconds
+        fps: Target framerate
+
+    Returns:
+        Path to the stitched output file
+    """
+    settings = get_settings()
+    ffmpeg = _ffmpeg()
+
+    if len(scene_paths) < 2:
+        return scene_paths[0]
+
+    # Build FFmpeg filter complex for xfade transitions
+    inputs = []
+    for path in scene_paths:
+        inputs.extend(["-i", path])
+
+    # Normalize all inputs to same framerate
+    filter_parts = []
+    for i in range(len(scene_paths)):
+        filter_parts.append(f"[{i}:v]settb=AVTB,fps={fps}[v{i}]")
+
+    # Chain xfade transitions
+    # Each clip is ~8s, transition starts at (clip_duration - transition_duration)
+    # We will use ffprobe to get exact duration if we want to be safe,
+    # but for Veo generations they are generally 8s or whatever duration was generated.
+    # We assume 8.0 seconds for now per the requirement.
+    clip_duration = 8.0  
+    prev_label = "v0"
+    offset = clip_duration - transition_duration
+
+    for i in range(1, len(scene_paths)):
+        out_label = f"t{i}" if i < len(scene_paths) - 1 else "vout"
+        filter_parts.append(
+            f"[{prev_label}][v{i}]xfade=transition={transition}"
+            f":duration={transition_duration}:offset={offset}"
+            f",format=yuv420p[{out_label}]"
+        )
+        prev_label = out_label
+        offset += clip_duration - transition_duration
+
+    filter_complex = "; ".join(filter_parts)
+    output_path = f"/tmp/stitched_{uuid.uuid4().hex[:8]}.mp4"
+
+    cmd = [
+        ffmpeg,
+        *inputs,
+        "-filter_complex", filter_complex,
+        "-map", f"[{prev_label}]",
+        "-c:v", "libx264",
+        "-crf", "18",
+        "-preset", "medium",
+        "-y",
+        output_path,
+    ]
+
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    if result.returncode != 0:
+        logger.error("ffmpeg_stitch_failed", stderr=result.stderr[:500])
+        raise RuntimeError(f"FFmpeg stitching failed: {result.stderr[:200]}")
+
+    logger.info("scenes_stitched", output=output_path, scene_count=len(scene_paths))
+    return output_path

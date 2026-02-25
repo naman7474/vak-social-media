@@ -15,6 +15,7 @@ from vak_bot.pipeline.orchestrator import (
     run_reel_this_conversion,
     run_video_extension,
     run_video_generation_pipeline,
+    run_multi_scene_ad_pipeline,
 )
 from vak_bot.pipeline.poster import MetaGraphPoster
 from vak_bot.storage import R2StorageClient
@@ -82,3 +83,10 @@ def extend_video_task(self, post_id: int, chat_id: int, video_variation: int = 1
 def reel_this_task(self, post_id: int, chat_id: int) -> None:
     logger.info("reel_this_task_start post_id=%s", post_id)
     run_reel_this_conversion(post_id=post_id, chat_id=chat_id)
+
+
+@celery_app.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 1})
+def generate_ad_task(self, post_id: int, chat_id: int, ad_structure: str | None = None) -> None:
+    structure = ad_structure or settings.ad_default_structure
+    logger.info("generate_ad_task_start post_id=%s structure=%s", post_id, structure)
+    run_multi_scene_ad_pipeline(post_id=post_id, chat_id=chat_id, ad_structure=structure)

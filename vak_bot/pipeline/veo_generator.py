@@ -258,14 +258,27 @@ class VeoGenerator:
         reference_images: list[str] | None = None,
         aspect_ratio: str | None = None,
         resolution: str | None = None,
+        negative_prompt: str | None = None,
     ) -> str:
         """
         Generate a video using Veo 3.1 from a styled product image.
 
         Returns: path to the generated MP4 file.
         """
+        from vak_bot.pipeline.prompts import load_brand_config
+
         aspect_ratio = aspect_ratio or self.settings.veo_default_aspect_ratio
         resolution = resolution or self.settings.veo_default_resolution
+
+        if negative_prompt is None:
+            config_data = load_brand_config()
+            neg_prompts = config_data.get("negative_prompts", {})
+            negative_prompt = ", ".join(
+                neg_prompts.get("universal", []) +
+                neg_prompts.get("product_protection", []) +
+                neg_prompts.get("brand_aesthetic", []) +
+                neg_prompts.get("cultural_sensitivity", [])
+            )
 
         if self.settings.dry_run:
             dummy_path = f"/tmp/veo_dryrun_{uuid.uuid4().hex[:8]}.mp4"
@@ -289,6 +302,7 @@ class VeoGenerator:
         config = genai_types.GenerateVideosConfig(
             aspect_ratio=aspect_ratio,
             resolution=resolution,
+            negative_prompt=negative_prompt,
         )
 
         operation = self._client.models.generate_videos(
@@ -406,3 +420,57 @@ class VeoGenerator:
             )
 
         return variations
+
+    def generate_multi_scene_ad(
+        self,
+        styled_frame_path: str,
+        style_brief: StyleBrief,
+        ad_structure: str = "30_second_reel",
+    ) -> list[dict]:
+        """Generate a series of scenes for a multi-scene ad."""
+        from vak_bot.pipeline.prompts import load_brand_config
+        config = load_brand_config()
+        presets = config.get("video_presets", {}).get("ad_structures", {})
+        
+        # Fall back to default if specified preset doesn't exist
+        structure = presets.get(ad_structure, presets.get("30_second_reel", []))
+        
+        scenes: list[dict] = []
+        failures: list[str] = []
+        
+        # Re-use reference paths for extensions if possible, but Veo usually works better sequence by sequence
+        # Here we just generate each scene described in the preset as an independent 8s video
+        # In a more advanced setup, we would extend the previous scene's result.
+        
+        for i, scene_def in enumerate(structure, start=1):
+            scene_type = scene_def.get("scene_type", "fabric-flow")
+            base_prompt = self.build_video_prompt(style_brief, scene_type)
+            modifier = scene_def.get("motion_modifier", "")
+            duration = scene_def.get("duration", 8)
+            
+            full_prompt = f"{base_prompt}\n\nguidance_weight: High\nMOTION STYLE: {modifier}"
+            
+            logger.info(f"veo_generating_scene", index=i, type=scene_type)
+            try:
+                # Assuming generating independent video chunks, can be stitched later
+                result_path = self.generate_reel_from_styled_image(
+                    styled_frame_path=styled_frame_path,
+                    video_prompt=full_prompt,
+                    # Short scenes just get full 8s generation but stitched appropriately
+                )
+                scenes.append({
+                    "id": f"scene_{i}",
+                    "path": result_path,
+                    "duration": duration,
+                    "type": scene_type
+                })
+            except Exception as e:
+                failures.append(f"Scene {i} failed: {str(e)}")
+                logger.warning("veo_scene_generation_failed", scene=i, error=str(e))
+                # Stop rendering further scenes if one fails
+                break
+
+        if not scenes and failures:
+            raise VeoGenerationError(f"Failed to generate ad scenes: {' | '.join(failures)}")
+            
+        return scenes
