@@ -429,48 +429,89 @@ class VeoGenerator:
     ) -> list[dict]:
         """Generate a series of scenes for a multi-scene ad."""
         from vak_bot.pipeline.prompts import load_brand_config
+
+        def _to_int(value: object, default: int = 8) -> int:
+            try:
+                parsed = int(value)
+                return parsed if parsed > 0 else default
+            except Exception:
+                return default
+
         config = load_brand_config()
         presets = config.get("video_presets", {}).get("ad_structures", {})
-        
-        # Fall back to default if specified preset doesn't exist
-        structure = presets.get(ad_structure, presets.get("30_second_reel", []))
-        
+
+        # Support both config shapes:
+        # 1) {"30_second_reel": [{"scene_type": ...}, ...]}
+        # 2) {"30_second_reel": {"scenes": [{"type": ...}, ...], ...}}
+        structure_def = presets.get(ad_structure) or presets.get("30_second_reel") or []
+        if isinstance(structure_def, dict):
+            structure = structure_def.get("scenes", [])
+        else:
+            structure = structure_def
+
+        if not isinstance(structure, list):
+            raise VeoGenerationError(
+                f"Invalid ad structure config for '{ad_structure}': expected a list of scenes."
+            )
+
+        normalized_scenes: list[dict] = []
+        for i, scene_def in enumerate(structure, start=1):
+            if isinstance(scene_def, str):
+                normalized_scenes.append(
+                    {
+                        "scene_type": scene_def,
+                        "motion_modifier": "",
+                        "duration": 8,
+                    }
+                )
+                continue
+
+            if not isinstance(scene_def, dict):
+                logger.warning("veo_invalid_scene_definition", index=i, value_type=type(scene_def).__name__)
+                continue
+
+            normalized_scenes.append(
+                {
+                    "scene_type": scene_def.get("scene_type") or scene_def.get("type") or "fabric-flow",
+                    "motion_modifier": scene_def.get("motion_modifier") or "",
+                    "duration": _to_int(scene_def.get("duration", scene_def.get("duration_sec", 8))),
+                }
+            )
+
+        if not normalized_scenes:
+            raise VeoGenerationError(f"No valid scenes found for ad structure '{ad_structure}'.")
+
         scenes: list[dict] = []
         failures: list[str] = []
-        
-        # Re-use reference paths for extensions if possible, but Veo usually works better sequence by sequence
-        # Here we just generate each scene described in the preset as an independent 8s video
-        # In a more advanced setup, we would extend the previous scene's result.
-        
-        for i, scene_def in enumerate(structure, start=1):
+
+        for i, scene_def in enumerate(normalized_scenes, start=1):
             scene_type = scene_def.get("scene_type", "fabric-flow")
             base_prompt = self.build_video_prompt(style_brief, scene_type)
             modifier = scene_def.get("motion_modifier", "")
             duration = scene_def.get("duration", 8)
-            
+
             full_prompt = f"{base_prompt}\n\nguidance_weight: High\nMOTION STYLE: {modifier}"
-            
-            logger.info(f"veo_generating_scene", index=i, type=scene_type)
+
+            logger.info("veo_generating_scene", index=i, scene_type=scene_type, duration=duration)
             try:
-                # Assuming generating independent video chunks, can be stitched later
                 result_path = self.generate_reel_from_styled_image(
                     styled_frame_path=styled_frame_path,
                     video_prompt=full_prompt,
-                    # Short scenes just get full 8s generation but stitched appropriately
                 )
-                scenes.append({
-                    "id": f"scene_{i}",
-                    "path": result_path,
-                    "duration": duration,
-                    "type": scene_type
-                })
-            except Exception as e:
-                failures.append(f"Scene {i} failed: {str(e)}")
-                logger.warning("veo_scene_generation_failed", scene=i, error=str(e))
-                # Stop rendering further scenes if one fails
+                scenes.append(
+                    {
+                        "id": f"scene_{i}",
+                        "path": result_path,
+                        "duration": duration,
+                        "type": scene_type,
+                    }
+                )
+            except Exception as exc:
+                failures.append(f"Scene {i} failed: {str(exc)}")
+                logger.warning("veo_scene_generation_failed", scene=i, error=str(exc))
                 break
 
         if not scenes and failures:
             raise VeoGenerationError(f"Failed to generate ad scenes: {' | '.join(failures)}")
-            
+
         return scenes

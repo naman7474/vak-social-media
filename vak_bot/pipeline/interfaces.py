@@ -15,6 +15,7 @@ class DownloadedReference:
     media_type: str
     video_url: str | None = None
     thumbnail_url: str | None = None
+    video_duration_seconds: int | None = None
 
 
 class DataBrightClient(Protocol):

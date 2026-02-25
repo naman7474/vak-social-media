@@ -147,3 +147,26 @@ class TestOperationExtraction:
         except VeoGenerationError as exc:
             assert "rai_filtered_count=1" in str(exc)
             assert "SAFETY" in str(exc)
+
+
+class TestAdStructureParsing:
+    def test_generate_multi_scene_ad_supports_object_preset_shape(self, monkeypatch, tmp_path) -> None:
+        gen = VeoGenerator()
+        brief = _make_style_brief()
+
+        calls = {"n": 0}
+
+        def _fake_generate(*args, **kwargs):
+            calls["n"] += 1
+            return str(tmp_path / f"scene_{calls['n']}.mp4")
+
+        monkeypatch.setattr(gen, "generate_reel_from_styled_image", _fake_generate)
+        result = gen.generate_multi_scene_ad(
+            styled_frame_path="/tmp/start.jpg",
+            style_brief=brief,
+            ad_structure="30_second_reel",
+        )
+
+        assert len(result) >= 1
+        assert result[0]["type"] in {"fabric-flow", "close-up", "lifestyle", "reveal"}
+        assert all("duration" in scene for scene in result)

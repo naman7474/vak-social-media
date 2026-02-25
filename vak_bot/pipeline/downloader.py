@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from urllib.parse import urlparse
 
 import httpx
@@ -14,6 +15,70 @@ logger = structlog.get_logger(__name__)
 
 BRIGHTDATA_SCRAPE_URL = "https://api.brightdata.com/datasets/v3/scrape"
 BRIGHTDATA_DATASET_ID = "gd_lk5ns7kz21pck8jpis"  # Instagram Posts dataset
+
+
+def _parse_duration_seconds(raw: object) -> int | None:
+    if raw is None:
+        return None
+
+    if isinstance(raw, (int, float)):
+        value = float(raw)
+        if value <= 0:
+            return None
+        # Some providers return milliseconds.
+        if value >= 1000:
+            value = value / 1000.0
+        return max(1, int(round(value)))
+
+    if isinstance(raw, str):
+        text = raw.strip().lower()
+        if not text:
+            return None
+
+        # "00:30" or "01:02:03"
+        if ":" in text:
+            parts = text.split(":")
+            if all(p.isdigit() for p in parts):
+                if len(parts) == 2:
+                    return int(parts[0]) * 60 + int(parts[1])
+                if len(parts) == 3:
+                    return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+
+        # "30s", "30 sec", "30.5 seconds", "30"
+        match = re.search(r"(\d+(?:\.\d+)?)", text)
+        if match:
+            value = float(match.group(1))
+            if "ms" in text:
+                value = value / 1000.0
+            if value > 0:
+                return max(1, int(round(value)))
+
+    return None
+
+
+def _extract_video_duration_seconds(post_data: dict) -> int | None:
+    candidate_keys = [
+        "video_duration_seconds",
+        "video_duration",
+        "duration_seconds",
+        "duration_sec",
+        "duration",
+        "video_length",
+        "length",
+    ]
+    for key in candidate_keys:
+        parsed = _parse_duration_seconds(post_data.get(key))
+        if parsed is not None:
+            return parsed
+
+    # Fallback for nested payloads occasionally returned by providers.
+    video_meta = post_data.get("video_metadata")
+    if isinstance(video_meta, dict):
+        for key in candidate_keys:
+            parsed = _parse_duration_seconds(video_meta.get(key))
+            if parsed is not None:
+                return parsed
+    return None
 
 
 class DataBrightDownloader:
@@ -94,6 +159,7 @@ class DataBrightDownloader:
         if is_video:
             video_url = post_data.get("video_url") or post_data.get("video")
             thumbnail_url = post_data.get("thumbnail") or post_data.get("display_url")
+        video_duration_seconds = _extract_video_duration_seconds(post_data) if is_video else None
 
         # Extract image URLs from photos or post_content
         image_urls: list[str] = []
@@ -136,6 +202,7 @@ class DataBrightDownloader:
             image_count=len(image_urls),
             content_type=content_type,
             is_video=is_video,
+            video_duration_seconds=video_duration_seconds,
         )
 
         return DownloadedReference(
@@ -146,4 +213,5 @@ class DataBrightDownloader:
             media_type=final_media_type,
             video_url=video_url,
             thumbnail_url=thumbnail_url,
+            video_duration_seconds=video_duration_seconds,
         )

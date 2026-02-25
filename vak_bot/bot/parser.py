@@ -59,6 +59,9 @@ def parse_message_text(text: str | None) -> ParsedMessage:
                 media_override="reel",
             )
         if command == "/ad":
+            import structlog
+            logger = structlog.get_logger(__name__)
+            logger.info("parser_detected_ad_command", command=command, source_url=extract_first_url(text), product_code=extract_product_code(text))
             return ParsedMessage(
                 command=command,
                 source_url=extract_first_url(text),

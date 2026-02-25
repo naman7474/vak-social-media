@@ -114,7 +114,11 @@ async def _process_ingestion(chat_id: int, user_id: int, text: str | None, photo
         if parsed.product_code:
             product = lookup_product_by_code(db, parsed.product_code)
             if not product:
-                await respond(f"Product {parsed.product_code} not found. Send photos or a valid code.")
+                msg = f"Product {parsed.product_code} not found. Send photos or a valid code."
+                if send_via_message:
+                    await send_via_message.answer(msg)
+                else:
+                    await respond(msg)
                 return
             if not photo_urls:
                 photo_urls = product_photo_urls(product)
@@ -162,9 +166,11 @@ async def _process_ingestion(chat_id: int, user_id: int, text: str | None, photo
         await respond(REEL_DETECTED_MESSAGE)
         process_video_post_task.delay(post.id, chat_id)
     elif pipeline_type == "ad":
-        await respond("🎬 Ad template selected. Generating multi-scene ad...")
-        generate_ad_task.delay(post.id, chat_id)
+        logger.info("process_ingestion_dispatch_ad_image_first", post_id=post.id, chat_id=chat_id)
+        await respond("🎬 Ad template selected. Styling now, then auto-generating the ad. You'll review only the final video.")
+        process_post_task.delay(post.id, chat_id)
     else:
+        logger.info("process_ingestion_dispatch_image", post_id=post.id, chat_id=chat_id)
         process_post_task.delay(post.id, chat_id)
 
 
@@ -196,7 +202,32 @@ async def _handle_action(message: Message, action: str) -> bool:
                     await message.answer("Video option not found. Choose 1 after preview is ready.")
                     return True
                 post.video_url = video_job.video_url
+
+            # For images, fetch the selected image URL from the chosen variant so it's ready for ads
+            if post.media_type == "image":
+                 from vak_bot.db.models import PostVariant, PostVariantItem
+                 selected_variant = (
+                     db.query(PostVariant)
+                     .filter(PostVariant.post_id == post.id, PostVariant.variant_index == selected)
+                     .first()
+                 )
+                 if selected_variant:
+                     styled_item = (
+                         db.query(PostVariantItem)
+                         .filter(PostVariantItem.variant_id == selected_variant.id, PostVariantItem.position == 1)
+                         .first()
+                     )
+                     if styled_item and styled_item.image_url:
+                          post.styled_image = styled_item.image_url
+
             db.commit()
+
+            if post.detected_media_type == "ad":
+                 from vak_bot.workers.tasks import generate_ad_task
+                 await message.answer(f"Selected option {selected}. Generating multi-scene ad...")
+                 generate_ad_task.delay(post.id, chat_id)
+                 return True
+
             await message.answer(f"Selected option {selected}. Reply 'approve' when ready.")
             return True
 
@@ -594,8 +625,36 @@ def register_handlers(dispatcher: Dispatcher) -> None:
 
             if parsed.action == CallbackAction.SELECT:
                 post.selected_variant_index = parsed.variant
+
+                # Keep selected styled image in sync for downstream ad/video generation.
+                if post.media_type == "image":
+                    from vak_bot.db.models import PostVariant, PostVariantItem
+
+                    selected_variant = (
+                        db.query(PostVariant)
+                        .filter(PostVariant.post_id == post.id, PostVariant.variant_index == parsed.variant)
+                        .first()
+                    )
+                    if selected_variant:
+                        styled_item = (
+                            db.query(PostVariantItem)
+                            .filter(
+                                PostVariantItem.variant_id == selected_variant.id,
+                                PostVariantItem.position == 1,
+                            )
+                            .first()
+                        )
+                        if styled_item and styled_item.image_url:
+                            post.styled_image = styled_item.image_url
+
                 db.commit()
-                await callback.message.answer(f"Selected option {parsed.variant}. Reply 'approve' when ready.")
+
+                if post.detected_media_type == "ad":
+                    logger.info("callback_dispatch_generate_ad", post_id=post.id, chat_id=callback.message.chat.id)
+                    await callback.message.answer(f"Selected option {parsed.variant}. Generating multi-scene ad...")
+                    generate_ad_task.delay(post.id, callback.message.chat.id)
+                else:
+                    await callback.message.answer(f"Selected option {parsed.variant}. Reply 'approve' when ready.")
             elif parsed.action == CallbackAction.EDIT_CAPTION:
                 session = get_or_create_session(db, callback.from_user.id, callback.message.chat.id)
                 session.state = SessionState.AWAITING_CAPTION_EDIT.value

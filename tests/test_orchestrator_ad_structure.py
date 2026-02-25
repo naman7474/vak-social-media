@@ -1,0 +1,33 @@
+from vak_bot.pipeline.orchestrator import _ad_structure_duration_seconds, _select_ad_structure
+
+
+def test_ad_structure_duration_seconds_object_shape() -> None:
+    structure = {
+        "scenes": [
+            {"duration_sec": 3},
+            {"duration_sec": 7},
+            {"duration_sec": 10},
+        ]
+    }
+    assert _ad_structure_duration_seconds(structure) == 20
+
+
+def test_select_ad_structure_picks_closest_preset(monkeypatch) -> None:
+    config = {
+        "video_presets": {
+            "ad_structures": {
+                "15_second_reel": {"scenes": [{"duration_sec": 5}, {"duration_sec": 10}]},
+                "30_second_reel": {"scenes": [{"duration_sec": 10}, {"duration_sec": 10}, {"duration_sec": 10}]},
+            }
+        }
+    }
+
+    monkeypatch.setattr("vak_bot.pipeline.orchestrator.load_brand_config", lambda: config)
+
+    assert _select_ad_structure("30_second_reel", 14) == "15_second_reel"
+    assert _select_ad_structure("30_second_reel", 27) == "30_second_reel"
+
+
+def test_select_ad_structure_fallbacks_to_default_without_duration(monkeypatch) -> None:
+    monkeypatch.setattr("vak_bot.pipeline.orchestrator.load_brand_config", lambda: {"video_presets": {}})
+    assert _select_ad_structure("30_second_reel", None) == "30_second_reel"

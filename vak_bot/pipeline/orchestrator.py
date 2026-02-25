@@ -3,11 +3,13 @@ from __future__ import annotations
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 import httpx
 import structlog
 
 from vak_bot.bot.sender import send_review_package, send_text, send_video_review_package
+from vak_bot.config import get_settings
 from vak_bot.db.models import JobRun, Post, PostVariant, PostVariantItem, VideoJob
 from vak_bot.db.session import SessionLocal
 from vak_bot.enums import JobStage, JobStatus, PostStatus
@@ -17,6 +19,7 @@ from vak_bot.pipeline.downloader import DataBrightDownloader
 from vak_bot.pipeline.errors import PipelineError, VideoQualityError
 from vak_bot.pipeline.gemini_styler import GeminiStyler
 from vak_bot.pipeline.llm_utils import normalize_claude_model, normalize_gemini_image_model, normalize_openai_model
+from vak_bot.pipeline.prompts import load_brand_config
 from vak_bot.pipeline.saree_validator import SareeValidator
 from vak_bot.pipeline.veo_generator import VeoGenerator
 from vak_bot.pipeline.video_stitcher import extract_first_frame, compress_video
@@ -24,6 +27,7 @@ from vak_bot.schemas import StyleBrief
 from vak_bot.storage import R2StorageClient
 
 logger = structlog.get_logger(__name__)
+settings = get_settings()
 
 
 @contextmanager
@@ -81,6 +85,57 @@ def _resolve_saree_sources(post: Post) -> list[str]:
         ordered = sorted(post.product.photos, key=lambda p: (not p.is_primary, p.id))
         return [photo.photo_url for photo in ordered]
     return []
+
+
+def _ad_structure_duration_seconds(structure_def: object) -> int | None:
+    if isinstance(structure_def, dict):
+        scenes = structure_def.get("scenes", [])
+    elif isinstance(structure_def, list):
+        scenes = structure_def
+    else:
+        return None
+
+    if not isinstance(scenes, list) or not scenes:
+        return None
+
+    total = 0
+    for scene in scenes:
+        if isinstance(scene, dict):
+            raw = scene.get("duration_sec", scene.get("duration", 8))
+        elif isinstance(scene, str):
+            raw = 8
+        else:
+            continue
+        try:
+            duration = int(raw)
+        except Exception:
+            duration = 8
+        if duration > 0:
+            total += duration
+    return total if total > 0 else None
+
+
+def _select_ad_structure(default_structure: str, source_video_duration_seconds: int | None) -> str:
+    if source_video_duration_seconds is None:
+        return default_structure
+
+    presets = load_brand_config().get("video_presets", {}).get("ad_structures", {})
+    if not isinstance(presets, dict) or not presets:
+        return default_structure
+
+    best_name = default_structure if default_structure in presets else next(iter(presets))
+    best_diff: int | None = None
+
+    for name, structure_def in presets.items():
+        duration = _ad_structure_duration_seconds(structure_def)
+        if duration is None:
+            continue
+        diff = abs(duration - source_video_duration_seconds)
+        if best_diff is None or diff < best_diff:
+            best_diff = diff
+            best_name = name
+
+    return best_name
 
 
 def run_generation_pipeline(post_id: int, chat_id: int) -> None:
@@ -194,6 +249,38 @@ def run_generation_pipeline(post_id: int, chat_id: int) -> None:
 
                 post.styled_image = persisted_preview_urls[0]
                 session.commit()
+
+            if post.detected_media_type == "ad":
+                post.selected_variant_index = post.selected_variant_index or 1
+                session.commit()
+                send_text(chat_id, "Style generated. Moving directly to multi-scene ad rendering...")
+                selected_ad_structure = _select_ad_structure(
+                    default_structure=settings.ad_default_structure,
+                    source_video_duration_seconds=reference.video_duration_seconds,
+                )
+                logger.info(
+                    "ad_structure_selected",
+                    post_id=post_id,
+                    default_structure=settings.ad_default_structure,
+                    selected_structure=selected_ad_structure,
+                    source_video_duration_seconds=reference.video_duration_seconds,
+                )
+                run_multi_scene_ad_pipeline(
+                    post_id=post_id,
+                    chat_id=chat_id,
+                    ad_structure=selected_ad_structure,
+                )
+                session.refresh(post)
+                if post.status == PostStatus.REVIEW_READY.value:
+                    logger.info("generation_pipeline_complete_ad_auto", post_id=post_id)
+                else:
+                    logger.warning(
+                        "generation_pipeline_ad_auto_incomplete",
+                        post_id=post_id,
+                        status=post.status,
+                        error=post.error_message,
+                    )
+                return
 
             with stage_run(session, post_id, JobStage.CAPTION):
                 caption_package = captioner.generate_caption(
@@ -896,4 +983,3 @@ def run_multi_scene_ad_pipeline(post_id: int, chat_id: int, ad_structure: str = 
             session.commit()
             send_text(chat_id, f"Ad generation failed: {str(exc)[:200]}")
             logger.exception("ad_generation_failed", post_id=post_id, error=str(exc))
-            logger.exception("video_extension_error", post_id=post_id, error=str(exc))
