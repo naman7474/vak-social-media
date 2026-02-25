@@ -475,7 +475,7 @@ def register_handlers(dispatcher: Dispatcher) -> None:
             "/stats",
             "/reelqueue",
             "/reel",
-            "/ad",
+            "/ad"
         }:
             await message.answer("Unknown command. Use /help.")
             return
