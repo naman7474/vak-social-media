@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+import shutil
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -136,6 +137,16 @@ def _select_ad_structure(default_structure: str, source_video_duration_seconds: 
             best_name = name
 
     return best_name
+
+
+def _ffmpeg_available() -> bool:
+    configured = settings.ffmpeg_path
+    if configured:
+        if Path(configured).exists():
+            return True
+        if configured == "ffmpeg" and shutil.which("ffmpeg"):
+            return True
+    return shutil.which("ffmpeg") is not None
 
 
 def run_generation_pipeline(post_id: int, chat_id: int) -> None:
@@ -890,7 +901,6 @@ def run_multi_scene_ad_pipeline(post_id: int, chat_id: int, ad_structure: str = 
     """Generate a multi-scene ad (30s or 15s) by creating discrete scenes and stitching."""
     veo = VeoGenerator()
     captioner = ClaudeCaptionWriter()
-    video_validator = SareeValidator(threshold=0.75)
     storage = R2StorageClient()
 
     with SessionLocal() as session:
@@ -912,29 +922,61 @@ def run_multi_scene_ad_pipeline(post_id: int, chat_id: int, ad_structure: str = 
                 tf.write(styled_bytes)
                 styled_frame_path = tf.name
 
-            # Generate all scenes
-            send_text(chat_id, f"🎬 Generating {ad_structure} ad — this will take 5-10 minutes...")
-            scenes = veo.generate_multi_scene_ad(
-                styled_frame_path=styled_frame_path,
-                style_brief=style_brief,
-                ad_structure=ad_structure,
-            )
-
-            if len(scenes) < 2:
-                send_text(chat_id, "Could only generate 1 scene. Sending as a standard Reel instead.")
-                # Fall back to single clip posting
-                if scenes:
-                    final_path = scenes[0]["path"]
-                else:
-                    return
-            else:
-                # Stitch scenes with FFmpeg
-                from vak_bot.pipeline.video_stitcher import stitch_scenes
-                final_path = stitch_scenes(
-                    scene_paths=[s["path"] for s in scenes],
-                    transition="dissolve",
-                    transition_duration=1.5,
+            ffmpeg_ready = _ffmpeg_available()
+            if not ffmpeg_ready:
+                # Avoid expensive multi-scene generation if stitching cannot run.
+                send_text(
+                    chat_id,
+                    "ffmpeg is unavailable, so I'm generating a single-scene Reel fallback to avoid stitch failure.",
                 )
+                fallback_scene_type = (
+                    style_brief.video_analysis.recommended_video_type
+                    if style_brief.video_analysis and style_brief.video_analysis.recommended_video_type
+                    else "fabric-flow"
+                )
+                base_prompt = veo.build_video_prompt(style_brief, fallback_scene_type)
+                final_path = veo.generate_reel_from_styled_image(
+                    styled_frame_path=styled_frame_path,
+                    video_prompt=f"{base_prompt}\n\nguidance_weight: High",
+                )
+                fallback_duration = (
+                    style_brief.video_analysis.recommended_duration
+                    if style_brief.video_analysis and style_brief.video_analysis.recommended_duration
+                    else settings.default_reel_duration_seconds
+                )
+                scenes = [
+                    {
+                        "id": "scene_1",
+                        "path": final_path,
+                        "duration": int(fallback_duration),
+                        "type": fallback_scene_type,
+                    }
+                ]
+            else:
+                # Generate all scenes
+                send_text(chat_id, f"🎬 Generating {ad_structure} ad — this will take 5-10 minutes...")
+                scenes = veo.generate_multi_scene_ad(
+                    styled_frame_path=styled_frame_path,
+                    style_brief=style_brief,
+                    ad_structure=ad_structure,
+                )
+
+                if len(scenes) < 2:
+                    send_text(chat_id, "Could only generate 1 scene. Sending as a standard Reel instead.")
+                    # Fall back to single clip posting
+                    if scenes:
+                        final_path = scenes[0]["path"]
+                    else:
+                        return
+                else:
+                    # Stitch scenes with FFmpeg
+                    from vak_bot.pipeline.video_stitcher import stitch_scenes
+
+                    final_path = stitch_scenes(
+                        scene_paths=[s["path"] for s in scenes],
+                        transition="dissolve",
+                        transition_duration=1.5,
+                    )
 
             # Upload and send for review
             final_bytes = Path(final_path).read_bytes()
