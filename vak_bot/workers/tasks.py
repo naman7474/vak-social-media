@@ -90,3 +90,10 @@ def generate_ad_task(self, post_id: int, chat_id: int, ad_structure: str | None 
     structure = ad_structure or settings.ad_default_structure
     logger.info("generate_ad_task_start post_id=%s structure=%s", post_id, structure)
     run_multi_scene_ad_pipeline(post_id=post_id, chat_id=chat_id, ad_structure=structure)
+
+
+@celery_app.task(name="vak_bot.workers.tasks.dispatch_scheduled_posts_task")
+def dispatch_scheduled_posts_task() -> int:
+    # Compatibility shim for legacy beat entries; scheduling is not implemented in current v1.
+    logger.warning("dispatch_scheduled_posts_task_legacy_noop")
+    return 0

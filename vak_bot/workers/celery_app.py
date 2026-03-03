@@ -22,6 +22,7 @@ celery_app.conf.update(
         "vak_bot.workers.tasks.generate_ad_task": {"queue": "pipeline"},
         "vak_bot.workers.tasks.publish_post_task": {"queue": "pipeline"},
         "vak_bot.workers.tasks.rewrite_caption_task": {"queue": "pipeline"},
+        "vak_bot.workers.tasks.dispatch_scheduled_posts_task": {"queue": "maintenance"},
         "vak_bot.workers.tasks.refresh_meta_token_task": {"queue": "maintenance"},
         "vak_bot.workers.tasks.cleanup_reference_images_task": {"queue": "maintenance"},
     },
