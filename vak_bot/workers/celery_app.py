@@ -14,6 +14,9 @@ celery_app.conf.update(
     timezone=settings.default_posting_timezone,
     enable_utc=True,
     task_track_started=True,
+    worker_max_tasks_per_child=5,
+    worker_prefetch_multiplier=1,
+    result_expires=3600,
     task_routes={
         "vak_bot.workers.tasks.process_post_task": {"queue": "pipeline"},
         "vak_bot.workers.tasks.process_video_post_task": {"queue": "pipeline"},

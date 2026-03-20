@@ -223,16 +223,16 @@ def run_generation_pipeline(post_id: int, chat_id: int) -> None:
                 for variant in variants:
                     generated_bytes = _fetch_bytes(variant.preview_url)
                     is_valid, score, lpips_score = validator.verify_preserved(original_bytes, generated_bytes)
-                    
-                    if not is_valid or (lpips_score is not None and lpips_score > validator.lpips_threshold):
+                    del generated_bytes
+
+                    if not is_valid:
                         # Treat as warning only per user request
                         is_valid = True
                         low_ssim_variants.append(variant.variant_index)
                         logger.warning(
-                            "low_ssim_or_lpips_score",
+                            "low_ssim_score",
                             variant=variant.variant_index,
                             ssim_score=round(score, 4),
-                            lpips_score=round(lpips_score, 4) if lpips_score is not None else None,
                             threshold=validator.threshold,
                         )
                     record = PostVariant(
@@ -249,6 +249,8 @@ def run_generation_pipeline(post_id: int, chat_id: int) -> None:
                             PostVariantItem(variant_id=record.id, position=idx, image_url=image_url)
                         )
                     persisted_preview_urls.append(variant.preview_url)
+
+                del original_bytes
 
                 if low_ssim_variants:
                     logger.warning(
@@ -579,14 +581,11 @@ def run_video_generation_pipeline(post_id: int, chat_id: int) -> None:
                 if variants:
                     original_bytes = _fetch_bytes(saree_sources[0])
                     generated_bytes = _fetch_bytes(variants[0].preview_url)
-                    is_valid, score, lpips_score = validator.verify_preserved(original_bytes, generated_bytes)
-                    
-                    if not is_valid or (lpips_score is not None and lpips_score > validator.lpips_threshold):
-                        logger.warning(
-                            "styled_frame_quality_warning",
-                            ssim_score=round(score, 4),
-                            lpips_score=round(lpips_score, 4) if lpips_score is not None else None,
-                        )
+                    is_valid, score, _ = validator.verify_preserved(original_bytes, generated_bytes)
+                    del original_bytes, generated_bytes
+
+                    if not is_valid:
+                        logger.warning("styled_frame_quality_warning", ssim_score=round(score, 4))
 
                     post.styled_image = variants[0].preview_url
                     post.start_frame_url = variants[0].preview_url
@@ -619,14 +618,13 @@ def run_video_generation_pipeline(post_id: int, chat_id: int) -> None:
                     for idx, video_path in enumerate(video_paths, start=1):
                         try:
                             first_frame = extract_first_frame(video_path)
-                            is_valid_video, video_ssim, video_lpips = video_validator.verify_preserved(styled_bytes, first_frame)
-                            if not is_valid_video or (video_lpips is not None and video_lpips > video_validator.lpips_threshold):
+                            is_valid_video, video_ssim, _ = video_validator.verify_preserved(styled_bytes, first_frame)
+                            if not is_valid_video:
                                 logger.warning(
                                     "video_first_frame_warning",
                                     post_id=post_id,
                                     variation=idx,
                                     ssim_score=round(video_ssim, 4),
-                                    lpips_score=round(video_lpips, 4) if video_lpips is not None else None,
                                     threshold=video_validator.threshold,
                                 )
                         except Exception as exc:
@@ -640,6 +638,7 @@ def run_video_generation_pipeline(post_id: int, chat_id: int) -> None:
                         video_bytes = Path(video_path).read_bytes()
                         video_key = f"reels/{post.id}/variation_{idx}_{uuid.uuid4().hex[:6]}.mp4"
                         video_s3_url = storage.upload_bytes(video_key, video_bytes, content_type="video/mp4")
+                        del video_bytes
                         video_urls.append(video_s3_url)
 
                         job = VideoJob(
@@ -649,6 +648,8 @@ def run_video_generation_pipeline(post_id: int, chat_id: int) -> None:
                             status="done",
                         )
                         session.add(job)
+
+                    del styled_bytes
 
                     if not video_urls:
                         raise VideoQualityError("No video variation was successfully generated or uploaded.")
@@ -760,14 +761,13 @@ def run_reel_this_conversion(post_id: int, chat_id: int) -> None:
                     for idx, video_path in enumerate(video_paths, start=1):
                         try:
                             first_frame = extract_first_frame(video_path)
-                            is_valid_video, video_ssim, video_lpips = video_validator.verify_preserved(styled_bytes, first_frame)
-                            if not is_valid_video or (video_lpips is not None and video_lpips > video_validator.lpips_threshold):
+                            is_valid_video, video_ssim, _ = video_validator.verify_preserved(styled_bytes, first_frame)
+                            if not is_valid_video:
                                 logger.warning(
                                     "video_first_frame_warning",
                                     post_id=post_id,
                                     variation=idx,
                                     ssim_score=round(video_ssim, 4),
-                                    lpips_score=round(video_lpips, 4) if video_lpips is not None else None,
                                     threshold=video_validator.threshold,
                                 )
                         except Exception as exc:
@@ -781,6 +781,7 @@ def run_reel_this_conversion(post_id: int, chat_id: int) -> None:
                         video_bytes = Path(video_path).read_bytes()
                         video_key = f"reels/{post.id}/reelthis_{idx}_{uuid.uuid4().hex[:6]}.mp4"
                         video_s3_url = storage.upload_bytes(video_key, video_bytes, content_type="video/mp4")
+                        del video_bytes
                         video_urls.append(video_s3_url)
                         session.add(VideoJob(
                             post_id=post_id,
@@ -788,6 +789,8 @@ def run_reel_this_conversion(post_id: int, chat_id: int) -> None:
                             video_url=video_s3_url,
                             status="done",
                         ))
+
+                    del styled_bytes
 
                     if not video_urls:
                         raise VideoQualityError("No usable video variation passed the first-frame quality check.")
@@ -873,6 +876,7 @@ def run_video_extension(post_id: int, chat_id: int, video_variation: int = 1) ->
                 with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tf:
                     tf.write(video_bytes)
                     original_path = tf.name
+                del video_bytes
 
                 style_brief = StyleBrief.model_validate(post.style_brief or {})
                 continuation_prompt = veo.build_video_prompt(style_brief, post.video_type)
@@ -883,6 +887,7 @@ def run_video_extension(post_id: int, chat_id: int, video_variation: int = 1) ->
                 extended_bytes = Path(extended_path).read_bytes()
                 ext_key = f"reels/{post.id}/extended_{video_variation}_{uuid.uuid4().hex[:6]}.mp4"
                 ext_url = storage.upload_bytes(ext_key, extended_bytes, content_type="video/mp4")
+                del extended_bytes
 
                 video_job.video_url = ext_url
                 video_job.status = "extended"
@@ -921,6 +926,7 @@ def run_multi_scene_ad_pipeline(post_id: int, chat_id: int, ad_structure: str = 
             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tf:
                 tf.write(styled_bytes)
                 styled_frame_path = tf.name
+            del styled_bytes
 
             ffmpeg_ready = _ffmpeg_available()
             if not ffmpeg_ready:
@@ -982,6 +988,18 @@ def run_multi_scene_ad_pipeline(post_id: int, chat_id: int, ad_structure: str = 
             final_bytes = Path(final_path).read_bytes()
             key = f"videos/post-{post_id}/ad-{uuid.uuid4().hex[:8]}.mp4"
             video_url = storage.upload_bytes(key, final_bytes, content_type="video/mp4")
+            del final_bytes
+
+            # Clean up scene temp files
+            for s in scenes:
+                try:
+                    Path(s["path"]).unlink(missing_ok=True)
+                except Exception:
+                    pass
+            try:
+                Path(styled_frame_path).unlink(missing_ok=True)
+            except Exception:
+                pass
 
             post.video_url = video_url
             post.video_duration = sum(s["duration"] for s in scenes) if scenes else 8
