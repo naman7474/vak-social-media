@@ -27,8 +27,39 @@ Vâk's Instagram grid should feel like: a curated gallery, not a marketplace.
 
 IMPORTANT RULES:
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DE-BRANDING — CRITICAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The reference post belongs to ANOTHER brand. You must extract ONLY the visual
+aesthetic — NEVER carry over the original brand's identity.
+
+MANDATORY:
+- IGNORE all brand names, @handles, logos, watermarks, and promotional text
+  in the reference image and caption. They are irrelevant.
+- NEVER mention the original brand, designer, or creator in your output.
+- DO NOT extract or replicate the reference brand's typography, logo placement,
+  or branded text overlays.
+- If the reference image has a visible logo or watermark, describe the STYLE
+  of the composition as if the logo were not there.
+- Strip any brand-specific language from your adaptation_notes. Write only
+  about visual style (lighting, composition, color, mood, layout).
+- The reference caption is provided ONLY for mood/occasion context. Ignore
+  all brand mentions, product names, prices, and promotional language in it.
+
+The output you produce is for VÂK STUDIOS exclusively. All suggestions for
+backgrounds, props, text overlays, and styling must align with Vâk's brand
+identity described below — never the reference brand's identity.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 BRAND CONTEXT (use this to make better suggestions):
 This analysis is for Vâk Studios, a luxury hand-painted saree brand.
+Vâk (Sanskrit for "voice"). Tagline: "Your clothes speak before you do."
+Three pillars: VOICE, HAND, ONE.
+Vâk is an atelier — a quiet place where art becomes clothing. Not a marketplace,
+not fast-fashion, not a sustainability lecture.
+
 Brand color palette for backgrounds/staging:
 - Deep charcoal: #2C2C2C
 - Warm cream: #F5F0E8
@@ -36,16 +67,21 @@ Brand color palette for backgrounds/staging:
 - Deep maroon: #6B2D3E
 - Muted terracotta: #B87351
 - Sage green: #7A8B6F
+- Soft indigo: #4A5568
 - Brass accent: #D4A843
 - Jasmine white: #FEFCF3
+- Marigold: #E8A317 (festive content only)
 
 When suggesting "suggested_bg_for_saree", use these colors as anchors.
 When suggesting props, always suggest Indian-context items:
 brass diyas, marigold/jasmine flowers, terracotta items, carved wood,
 raw silk fabric, antique jewelry, woven baskets, handmade paper.
 
+The grid feel should be: a curated art gallery, not a marketplace.
+The mood is: warm, tactile, intimate — like looking at art in a quiet gallery.
+
 NEVER suggest:
-- Western props (wine glasses, modern vases, minimalist objects)
+- Western props (wine glasses, modern vases, minimalist Scandinavian objects)
 - Neon or electric colors in backgrounds
 - Industrial or stark white settings
 - Anything that reads as fast-fashion or mass-market
@@ -74,6 +110,22 @@ NEVER suggest:
    - Bottom 15% may be covered by caption preview on feed
    - Top-left corner has profile pic overlay in stories
    - For 4:5 posts, the visible thumbnail in grid is the center square
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MULTI-SAREE / GROUP POST DETECTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Look carefully at the reference image(s). Count how many DISTINCT sarees or
+textile products are shown. This is important for creating carousel posts.
+
+Rules for counting:
+- Count each visually distinct saree/textile as one. Different colors, patterns,
+  or motifs = different sarees.
+- If the same saree is shown from multiple angles, that counts as ONE.
+- If a saree is shown with a matching dupatta/blouse piece, that is still ONE set.
+- If the reference shows 3 different sarees laid out side by side, count = 3.
+- If you see a collage or grid with multiple products, count each unique one.
+- If unsure, default to 1.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -147,7 +199,9 @@ Return a JSON object with these exact fields:
 
   "reference_has_model": false,
 
-  "adaptation_notes": "2-3 sentences on how to translate this reference into a hand-painted saree post. Be specific about what to keep and what to change."
+  "distinct_saree_count": 1,
+
+  "adaptation_notes": "2-3 sentences on how to translate this reference into a hand-painted saree post. Be specific about what to keep and what to change. NEVER mention the original brand name — describe the style generically."
 }
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -284,11 +338,16 @@ EDGE CASES:
 
 - If the reference is already a saree brand post: Note what works and what
   Vâk should do differently to stay distinct. Don't copy competitor aesthetics
-  exactly — adapt and elevate.
+  exactly — adapt and elevate. NEVER mention the competitor brand name.
 
 - CRITICAL - NEVER MENTION NAMES: Do not include celebrity names, actor names,
-  model names, influencer names, or designer brand names in your analysis.
-  Describe styles generically ("elegant editorial pose", "luxury fashion aesthetic")
-  rather than referencing specific people ("Deepika style", "Sabyasachi look").
+  model names, influencer names, designer brand names, or ANY brand names in
+  your analysis. Describe styles generically ("elegant editorial pose",
+  "luxury fashion aesthetic") rather than referencing specific people
+  ("Deepika style", "Sabyasachi look") or brands.
   This is important because the output is used by AI image/video generators
-  that will reject prompts containing celebrity references.
+  that will reject prompts containing celebrity or brand references.
+
+- MULTI-SAREE: If the reference shows multiple distinct sarees/textiles, set
+  "distinct_saree_count" to the number you see. If it's a collage or group
+  shot with N sarees, set it to N. For a single product shot, set it to 1.

@@ -27,6 +27,7 @@ class VideoType(str, Enum):
 class SessionState(str, Enum):
     IDLE = "idle"
     AWAITING_PHOTOS = "awaiting_photos"
+    AWAITING_MULTI_SAREE = "awaiting_multi_saree"
     REVIEW_READY = "review_ready"
     AWAITING_CAPTION_EDIT = "awaiting_caption_edit"
     AWAITING_APPROVAL = "awaiting_approval"

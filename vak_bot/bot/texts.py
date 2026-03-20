@@ -38,3 +38,9 @@ VIDEO_PROCESSING_MESSAGE = (
 )
 
 VIDEO_EXTENDING_MESSAGE = "Extending video by 8 seconds. This takes ~3 minutes..."
+
+MULTI_SAREE_MESSAGE = (
+    "The reference post shows {count} different sarees. "
+    "Please send {count} saree photos — one for each position in the carousel. "
+    "Send them all together as a group or one by one."
+)

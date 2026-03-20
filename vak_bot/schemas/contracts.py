@@ -89,6 +89,7 @@ class StyleBrief(BaseModel):
     content_format: str = "single-image"
     vibe_words: list[str] = Field(min_length=2, max_length=5)
     reference_has_model: Optional[bool] = None
+    distinct_saree_count: int = 1
     adaptation_notes: str = ""
     video_analysis: Optional[VideoAnalysis] = None
 

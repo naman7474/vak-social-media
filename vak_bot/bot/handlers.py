@@ -321,15 +321,44 @@ async def _finalize_album(media_group_id: str) -> None:
     if not payload:
         return
 
+    chat_id = payload["chat_id"]
+    user_id = payload["user_id"]
+    photo_urls = payload.get("photo_urls", [])
+
+    # Check if we're waiting for multi-saree photos
+    with SessionLocal() as db:
+        session = get_or_create_session(db, user_id, chat_id)
+        if session.state == SessionState.AWAITING_MULTI_SAREE.value and session.context_json:
+            post_id = session.context_json.get("post_id")
+            if post_id:
+                post = db.get(Post, post_id)
+                if post:
+                    existing = list(post.input_photo_urls or [])
+                    existing.extend(photo_urls)
+                    post.input_photo_urls = existing
+                    needed = session.context_json.get("sarees_needed", 1)
+                    if len(existing) >= needed:
+                        session.state = SessionState.AWAITING_APPROVAL.value
+                        session.context_json = {"selected_variant": None}
+                        db.commit()
+                        send_text(chat_id, f"Got all {needed} saree photos! Resuming styling...")
+                        process_post_task.delay(post.id, chat_id)
+                    else:
+                        session.context_json["sarees_received"] = len(existing)
+                        db.commit()
+                        remaining = needed - len(existing)
+                        send_text(chat_id, f"Got {len(existing)}/{needed} photos. Send {remaining} more.")
+                    return
+
     text = payload.get("text")
     if not text:
         return
 
     await _process_ingestion(
-        chat_id=payload["chat_id"],
-        user_id=payload["user_id"],
+        chat_id=chat_id,
+        user_id=user_id,
         text=text,
-        photo_urls=payload.get("photo_urls", []),
+        photo_urls=photo_urls,
         photo_file_ids=payload.get("photo_file_ids", []),
     )
 
@@ -554,9 +583,32 @@ def register_handlers(dispatcher: Dispatcher) -> None:
         photo_file_ids, photo_urls = await _extract_photo_urls(message)
         caption_text = message.caption or ""
 
-        # Check if there's a pending reference URL from a previous text message
+        # Check if we're waiting for multi-saree photos
         with SessionLocal() as db:
             session = get_or_create_session(db, message.from_user.id, message.chat.id)
+            if session.state == SessionState.AWAITING_MULTI_SAREE.value and session.context_json:
+                post_id = session.context_json.get("post_id")
+                if post_id:
+                    post = db.get(Post, post_id)
+                    if post:
+                        existing = list(post.input_photo_urls or [])
+                        existing.extend(photo_urls)
+                        post.input_photo_urls = existing
+                        needed = session.context_json.get("sarees_needed", 1)
+                        if len(existing) >= needed:
+                            session.state = SessionState.AWAITING_APPROVAL.value
+                            session.context_json = {"selected_variant": None}
+                            db.commit()
+                            await message.answer(f"Got all {needed} saree photos! Resuming styling...")
+                            process_post_task.delay(post.id, message.chat.id)
+                        else:
+                            session.context_json["sarees_received"] = len(existing)
+                            db.commit()
+                            remaining = needed - len(existing)
+                            await message.answer(f"Got {len(existing)}/{needed} photos. Send {remaining} more.")
+                        return
+
+            # Check if there's a pending reference URL from a previous text message
             if session.state == SessionState.AWAITING_PHOTOS.value and session.context_json:
                 pending_url = session.context_json.get("pending_source_url", "")
                 if pending_url and not caption_text:

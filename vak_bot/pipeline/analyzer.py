@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import httpx
 import structlog
 
@@ -14,6 +16,25 @@ from vak_bot.pipeline.prompts import load_analysis_prompt, load_video_analysis_p
 from vak_bot.schemas import StyleBrief
 
 logger = structlog.get_logger(__name__)
+
+
+def _sanitize_reference_caption(caption: str | None) -> str:
+    """Strip brand handles, URLs, hashtags, and promotional noise from a reference caption.
+
+    We only want the mood/occasion context, not competitor branding.
+    """
+    if not caption:
+        return "N/A"
+    text = caption
+    # Remove @handles
+    text = re.sub(r"@[\w.]+", "", text)
+    # Remove URLs
+    text = re.sub(r"https?://\S+", "", text)
+    # Remove hashtags
+    text = re.sub(r"#\w+", "", text)
+    # Collapse whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+    return text or "N/A"
 
 
 class OpenAIReferenceAnalyzer:
@@ -62,7 +83,8 @@ class OpenAIReferenceAnalyzer:
             video_addon = load_video_analysis_prompt()
             if video_addon:
                 prompt = f"{prompt}\n\n{video_addon}"
-        user_text = f"Reference caption: {reference_caption or 'N/A'}"
+        clean_caption = _sanitize_reference_caption(reference_caption)
+        user_text = f"Reference caption (mood context only): {clean_caption}"
 
         # Use the OpenAI Responses API (newer format for gpt-4.1+ and gpt-5 models)
         model = normalize_openai_model(self.settings.openai_model)

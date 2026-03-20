@@ -11,9 +11,9 @@ import structlog
 
 from vak_bot.bot.sender import send_review_package, send_text, send_video_review_package
 from vak_bot.config import get_settings
-from vak_bot.db.models import JobRun, Post, PostVariant, PostVariantItem, VideoJob
+from vak_bot.db.models import JobRun, Post, PostVariant, PostVariantItem, TelegramSession, VideoJob
 from vak_bot.db.session import SessionLocal
-from vak_bot.enums import JobStage, JobStatus, PostStatus
+from vak_bot.enums import JobStage, JobStatus, PostStatus, SessionState
 from vak_bot.pipeline.analyzer import OpenAIReferenceAnalyzer
 from vak_bot.pipeline.caption_writer import ClaudeCaptionWriter
 from vak_bot.pipeline.downloader import DataBrightDownloader
@@ -186,12 +186,39 @@ def run_generation_pipeline(post_id: int, chat_id: int) -> None:
                 session.commit()
 
             with stage_run(session, post_id, JobStage.ANALYZE):
-                style_brief = analyzer.analyze_reference(post.reference_image or "", post.source_caption)
-                post.style_brief = style_brief.model_dump()
+                # Skip re-analysis if style_brief already exists (e.g. resuming after multi-saree photo upload)
+                if post.style_brief:
+                    style_brief = StyleBrief.model_validate(post.style_brief)
+                else:
+                    style_brief = analyzer.analyze_reference(post.reference_image or "", post.source_caption)
+                    post.style_brief = style_brief.model_dump()
+                    session.commit()
+
+            # Check if we need more saree photos for a multi-saree post
+            saree_sources = _resolve_saree_sources(post)
+            needed = style_brief.distinct_saree_count
+            if needed > 1 and len(saree_sources) < needed:
+                from vak_bot.bot.texts import MULTI_SAREE_MESSAGE
+                # Update session state so bot knows to collect more photos
+                user_session = (
+                    session.query(TelegramSession)
+                    .filter(TelegramSession.chat_id == str(chat_id))
+                    .first()
+                )
+                if user_session:
+                    user_session.state = SessionState.AWAITING_MULTI_SAREE.value
+                    user_session.context_json = {
+                        "post_id": post_id,
+                        "sarees_needed": needed,
+                        "sarees_received": len(saree_sources),
+                    }
+                post.status = PostStatus.DRAFT.value
                 session.commit()
+                send_text(chat_id, MULTI_SAREE_MESSAGE.format(count=needed))
+                logger.info("multi_saree_awaiting_photos", post_id=post_id, needed=needed, have=len(saree_sources))
+                return
 
             with stage_run(session, post_id, JobStage.STYLE):
-                saree_sources = _resolve_saree_sources(post)
                 if not saree_sources:
                     raise PipelineError("No saree photo found for this post")
 
